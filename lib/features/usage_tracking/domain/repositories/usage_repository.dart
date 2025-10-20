@@ -51,6 +51,9 @@ abstract class UsageRepository {
   /// Get user's subscription details
   Future<Either<Failure, UserSubscription>> getUserSubscription(String userId);
 
+  /// Assign free tier to a new user
+  Future<Either<Failure, UserSubscription>> assignFreeTier(String userId);
+
   /// Update user's subscription
   Future<Either<Failure, void>> updateSubscription(
     UserSubscription subscription,

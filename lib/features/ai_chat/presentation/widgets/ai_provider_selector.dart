@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_theme.dart';
 import '../../domain/entities/chat_message.dart';
 
 class AIProviderSelector extends StatelessWidget {
   final AIProvider currentProvider;
+  final String userTier;
   final Function(AIProvider) onProviderChanged;
 
   const AIProviderSelector({
     super.key,
     required this.currentProvider,
+    required this.userTier,
     required this.onProviderChanged,
   });
+
+  bool _isProviderLocked(AIProvider provider) {
+    // Free tier can only use Gemini
+    if (userTier.toLowerCase() == 'free') {
+      return provider != AIProvider.gemini;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,12 +56,20 @@ class AIProviderSelector extends StatelessWidget {
               child: Row(
                 children: AIProvider.values.map((provider) {
                   final isSelected = provider == currentProvider;
+                  final isLocked = _isProviderLocked(provider);
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: _ProviderChip(
                       provider: provider,
                       isSelected: isSelected,
-                      onTap: () => onProviderChanged(provider),
+                      isLocked: isLocked,
+                      onTap: () {
+                        if (isLocked) {
+                          _showUpgradeDialog(context, provider);
+                        } else {
+                          onProviderChanged(provider);
+                        }
+                      },
                     ),
                   );
                 }).toList(),
@@ -61,16 +80,52 @@ class AIProviderSelector extends StatelessWidget {
       ),
     );
   }
+
+  void _showUpgradeDialog(BuildContext context, AIProvider provider) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.workspace_premium, color: Colors.purple),
+            const SizedBox(width: 8),
+            Text('Upgrade to Pro'),
+          ],
+        ),
+        content: Text(
+          'Unlock ${provider.displayName} and other premium AI providers by upgrading to Pro.\n\n'
+          '✓ Unlimited messages\n'
+          '✓ All AI providers\n'
+          '✓ Priority support',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => dialogContext.pop(),
+            child: const Text('Maybe Later'),
+          ),
+          FilledButton(
+            onPressed: () {
+              dialogContext.pop();
+              context.go('/subscription');
+            },
+            child: const Text('Upgrade Now'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProviderChip extends StatelessWidget {
   final AIProvider provider;
   final bool isSelected;
+  final bool isLocked;
   final VoidCallback onTap;
 
   const _ProviderChip({
     required this.provider,
     required this.isSelected,
+    required this.isLocked,
     required this.onTap,
   });
 
@@ -88,9 +143,17 @@ class _ProviderChip extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+            color: isLocked
+                ? theme.disabledColor.withOpacity(0.1)
+                : isSelected
+                    ? color.withOpacity(0.2)
+                    : Colors.transparent,
             border: Border.all(
-              color: isSelected ? color : theme.dividerColor,
+              color: isLocked
+                  ? theme.disabledColor
+                  : isSelected
+                      ? color
+                      : theme.dividerColor,
               width: isSelected ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -98,25 +161,59 @@ class _ProviderChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isSelected ? color : theme.disabledColor,
-                  shape: BoxShape.circle,
+              if (isLocked) ...[
+                Icon(
+                  Icons.lock,
+                  size: 14,
+                  color: theme.disabledColor,
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 6),
+              ] else ...[
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isSelected ? color : theme.disabledColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               Text(
                 provider.displayName,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isSelected ? color : theme.textTheme.bodyMedium?.color,
+                  color: isLocked
+                      ? theme.disabledColor
+                      : isSelected
+                          ? color
+                          : theme.textTheme.bodyMedium?.color,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
-              if (isSelected) ...[
+              if (isSelected && !isLocked) ...[
                 const SizedBox(width: 4),
                 Icon(Icons.check_circle, size: 16, color: color),
+              ],
+              if (isLocked) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withAlpha(51),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'PRO',
+                    style: TextStyle(
+                      color: Colors.purple,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ],
             ],
           ),

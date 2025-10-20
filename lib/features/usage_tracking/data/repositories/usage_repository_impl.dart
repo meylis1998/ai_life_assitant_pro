@@ -272,6 +272,28 @@ class UsageRepositoryImpl implements UsageRepository {
   }
 
   @override
+  Future<Either<Failure, UserSubscription>> assignFreeTier(String userId) async {
+    try {
+      // Create free tier subscription
+      final freeSub = UserSubscription.free(userId);
+
+      // Save to Firestore
+      await _saveSubscription(freeSub);
+
+      // Update cache
+      _subscriptionCache[userId] = freeSub;
+
+      // Initialize user stats with free tier
+      final initialStats = UserUsageStats.empty(userId);
+      await updateUserStats(initialStats);
+
+      return Right(freeSub);
+    } catch (e) {
+      return Left(ServerFailure(message: 'Failed to assign free tier: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> updateSubscription(
     UserSubscription subscription,
   ) async {

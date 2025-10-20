@@ -56,19 +56,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       final userResult = await authRepository.getCurrentUser();
       userResult.fold(
         (failure) {
-          // User not authenticated, will use guest mode
-          AppLogger.i('No authenticated user, using guest mode');
+          // User not authenticated - this should not happen with forced auth
+          AppLogger.e('No authenticated user found: ${failure.message}');
+          throw Exception('Authentication required');
         },
         (user) {
-          // Initialize usage tracking if UsageBloc is available
-          final userId = user?.id;
-          if (userId != null) {
-            usageBloc?.add(InitializeUsageTracking(userId: userId));
+          if (user == null) {
+            AppLogger.e('User is null despite successful result');
+            throw Exception('Authentication required');
           }
+
+          // Initialize usage tracking
+          final userId = user.id;
+          usageBloc?.add(InitializeUsageTracking(userId: userId));
+          AppLogger.i('User context initialized for user: $userId');
         },
       );
     } catch (e) {
       AppLogger.e('Failed to initialize user context: $e');
+      rethrow;
     }
   }
 
@@ -80,80 +86,90 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     try {
       AppLogger.i('Sending message: ${event.message}');
 
-      // Get current user for quota checking
+      // Get current user - authentication is required
       final userResult = await authRepository.getCurrentUser();
       final user = userResult.fold((f) => null, (u) => u);
-      final userId = user?.id ?? 'guest';
 
-      // Check quota before sending (for authenticated users)
-      if (user != null) {
-        final quotaResult = await usageRepository.checkQuota(
-          userId: userId,
-          provider: event.provider.apiName,
-          estimatedTokens: _estimateTokens(event.message),
+      if (user == null) {
+        emit(
+          ChatError(
+            errorMessage:
+                'Authentication required. Please sign in to continue.',
+            conversation: state.conversation,
+            currentProvider: event.provider,
+          ),
         );
+        return;
+      }
 
-        final canSend = quotaResult.fold((f) => false, (r) => r);
+      final userId = user.id;
 
-        if (!canSend) {
-          // Get quota status for detailed error
-          final quotaStatusResult = await usageRepository.getQuotaStatus(
-            userId,
-          );
+      // Check quota before sending (mandatory for all users)
+      final quotaResult = await usageRepository.checkQuota(
+        userId: userId,
+        provider: event.provider.apiName,
+        estimatedTokens: _estimateTokens(event.message),
+      );
 
-          return quotaStatusResult.fold(
-            (failure) {
-              emit(
-                ChatError(
-                  errorMessage: 'Quota exceeded. Please try again later.',
-                  conversation: state.conversation,
-                  currentProvider: event.provider,
-                ),
-              );
-            },
-            (quotaStatus) {
-              _currentQuotaStatus = quotaStatus;
-              emit(
-                QuotaExceeded(
-                  userTier: quotaStatus.tier,
-                  quotaType: quotaStatus.exceededType ?? 'daily',
-                  resetTime: quotaStatus.nextResetDate,
-                  upgradeSuggestion: quotaStatus.tier == 'free'
-                      ? 'Upgrade to Pro for 10x more messages!'
-                      : quotaStatus.tier == 'pro'
-                      ? 'Upgrade to Premium for unlimited usage!'
-                      : null,
-                  remainingMessages: quotaStatus.remainingMessages,
-                  remainingTokens: quotaStatus.remainingTokens,
-                  conversation: state.conversation,
-                  currentProvider: event.provider,
-                  quotaStatus: quotaStatus,
-                ),
-              );
-            },
-          );
-        }
+      final canSend = quotaResult.fold((f) => false, (r) => r);
 
-        // Check if approaching limit (80%+ usage)
+      if (!canSend) {
+        // Get quota status for detailed error
         final quotaStatusResult = await usageRepository.getQuotaStatus(userId);
-        quotaStatusResult.fold((f) => null, (quotaStatus) {
-          _currentQuotaStatus = quotaStatus;
-          if (quotaStatus.usagePercentage >= 80 && !quotaStatus.isExceeded) {
-            // Emit warning but continue with message
+
+        return quotaStatusResult.fold(
+          (failure) {
             emit(
-              QuotaWarning(
-                usagePercentage: quotaStatus.usagePercentage,
+              ChatError(
+                errorMessage:
+                    'Quota exceeded. Please upgrade your plan to continue.',
+                conversation: state.conversation,
+                currentProvider: event.provider,
+              ),
+            );
+          },
+          (quotaStatus) {
+            _currentQuotaStatus = quotaStatus;
+            emit(
+              QuotaExceeded(
+                userTier: quotaStatus.tier,
+                quotaType: quotaStatus.exceededType ?? 'daily',
+                resetTime: quotaStatus.nextResetDate,
+                upgradeSuggestion: quotaStatus.tier == 'free'
+                    ? 'Upgrade to Pro for 10x more messages!'
+                    : quotaStatus.tier == 'pro'
+                    ? 'Upgrade to Premium for unlimited usage!'
+                    : null,
                 remainingMessages: quotaStatus.remainingMessages,
                 remainingTokens: quotaStatus.remainingTokens,
-                warningMessage: 'You\'re approaching your daily limit',
                 conversation: state.conversation,
                 currentProvider: event.provider,
                 quotaStatus: quotaStatus,
               ),
             );
-          }
-        });
+          },
+        );
       }
+
+      // Check if approaching limit (80%+ usage)
+      final quotaStatusResult = await usageRepository.getQuotaStatus(userId);
+      quotaStatusResult.fold((f) => null, (quotaStatus) {
+        _currentQuotaStatus = quotaStatus;
+        if (quotaStatus.usagePercentage >= 80 && !quotaStatus.isExceeded) {
+          // Emit warning but continue with message
+          emit(
+            QuotaWarning(
+              usagePercentage: quotaStatus.usagePercentage,
+              remainingMessages: quotaStatus.remainingMessages,
+              remainingTokens: quotaStatus.remainingTokens,
+              warningMessage: 'You\'re approaching your daily limit',
+              conversation: state.conversation,
+              currentProvider: event.provider,
+              quotaStatus: quotaStatus,
+            ),
+          );
+        }
+      });
 
       // Create user message with userId
       final userMessage = ChatMessage(
@@ -229,9 +245,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           );
 
           // Log usage to UsageBloc if available
-          if (user != null &&
-              usageBloc != null &&
-              response.totalTokens != null) {
+          if (usageBloc != null && response.totalTokens != null) {
             usageBloc!.add(
               LogMessageUsage(
                 userId: userId,
@@ -246,7 +260,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           }
 
           // Update usage stats
-          if (user != null && _currentQuotaStatus != null) {
+          if (_currentQuotaStatus != null) {
             final updatedStats = UsageUpdated(
               messagesUsedToday:
                   (_currentQuotaStatus!.messagesUsedToday ?? 0) + 1,
@@ -339,11 +353,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
 
-      _streamSubscription = stream.listen(
-        (result) {
-          result.fold(
-            (failure) {
-              AppLogger.e('Stream error: ${failure.message}');
+      // Use await for to properly handle the stream
+      await for (final result in stream) {
+        if (emit.isDone) break;
+
+        result.fold(
+          (failure) {
+            AppLogger.e('Stream error: ${failure.message}');
+            if (!emit.isDone) {
               emit(
                 ChatError(
                   errorMessage: failure.message,
@@ -351,20 +368,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                   currentProvider: event.provider,
                 ),
               );
-            },
-            (chunk) {
-              _accumulatedContent += chunk;
+            }
+          },
+          (chunk) {
+            _accumulatedContent += chunk;
 
-              // Update the assistant message with accumulated content
-              final updatedAssistantMessage = assistantMessage.copyWith(
-                content: _accumulatedContent,
-              );
+            // Update the assistant message with accumulated content
+            final updatedAssistantMessage = assistantMessage.copyWith(
+              content: _accumulatedContent,
+            );
 
-              final conversationWithUpdate = updatedConversation.updateMessage(
-                assistantMessage.id,
-                updatedAssistantMessage,
-              );
+            final conversationWithUpdate = updatedConversation.updateMessage(
+              assistantMessage.id,
+              updatedAssistantMessage,
+            );
 
+            if (!emit.isDone) {
               emit(
                 ChatStreaming(
                   conversation: conversationWithUpdate,
@@ -372,55 +391,48 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                   currentProvider: event.provider,
                 ),
               );
-            },
-          );
-        },
-        onDone: () {
-          AppLogger.i('Stream completed');
+            }
+          },
+        );
+      }
 
-          // Mark message as sent
-          final finalMessage = assistantMessage.copyWith(
-            content: _accumulatedContent,
-            status: MessageStatus.sent,
-          );
+      // Stream completed - mark message as sent
+      if (!emit.isDone) {
+        AppLogger.i('Stream completed');
 
-          final finalConversation = updatedConversation.updateMessage(
-            assistantMessage.id,
-            finalMessage,
-          );
+        final finalMessage = assistantMessage.copyWith(
+          content: _accumulatedContent,
+          status: MessageStatus.sent,
+        );
 
-          emit(
-            ResponseReceived(
-              response: finalMessage,
-              conversation: finalConversation,
-              currentProvider: event.provider,
-            ),
-          );
-        },
-        onError: (error) {
-          AppLogger.e('Stream error', error: error);
-          emit(
-            ChatError(
-              errorMessage: 'Stream error: $error',
-              conversation: updatedConversation,
-              currentProvider: event.provider,
-            ),
-          );
-        },
-      );
+        final finalConversation = updatedConversation.updateMessage(
+          assistantMessage.id,
+          finalMessage,
+        );
+
+        emit(
+          ResponseReceived(
+            response: finalMessage,
+            conversation: finalConversation,
+            currentProvider: event.provider,
+          ),
+        );
+      }
     } catch (e, stackTrace) {
       AppLogger.e(
         'Error in _onStreamMessage',
         error: e,
         stackTrace: stackTrace,
       );
-      emit(
-        ChatError(
-          errorMessage: 'Failed to start streaming',
-          conversation: state.conversation,
-          currentProvider: event.provider,
-        ),
-      );
+      if (!emit.isDone) {
+        emit(
+          ChatError(
+            errorMessage: 'Failed to stream message: $e',
+            conversation: state.conversation,
+            currentProvider: event.provider,
+          ),
+        );
+      }
     }
   }
 

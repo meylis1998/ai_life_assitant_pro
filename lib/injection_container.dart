@@ -209,6 +209,7 @@ void _initAuthFeature() {
         linkAppleAccount: sl(),
         updateUserProfile: sl(),
         authRepository: sl(),
+        usageRepository: sl(),
       ),
     );
 

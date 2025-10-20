@@ -10,7 +10,6 @@ plugins {
 android {
     namespace = "ai.life_assistant.pro"
     compileSdk = 36
-    ndkVersion = "29.0.13599879 rc2"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
