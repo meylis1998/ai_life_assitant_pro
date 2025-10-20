@@ -5,10 +5,7 @@ abstract class Failure extends Equatable {
   final String message;
   final int? code;
 
-  const Failure({
-    required this.message,
-    this.code,
-  });
+  const Failure({required this.message, this.code});
 
   @override
   List<Object?> get props => [message, code];
@@ -16,26 +13,17 @@ abstract class Failure extends Equatable {
 
 /// Failure when there's an error from the server
 class ServerFailure extends Failure {
-  const ServerFailure({
-    String message = 'Server error occurred',
-    int? code,
-  }) : super(message: message, code: code);
+  const ServerFailure({super.message = 'Server error occurred', super.code});
 }
 
 /// Failure when there's no internet connection
 class NetworkFailure extends Failure {
-  const NetworkFailure({
-    String message = 'No internet connection',
-    int? code,
-  }) : super(message: message, code: code);
+  const NetworkFailure({super.message = 'No internet connection', super.code});
 }
 
 /// Failure related to AI provider operations
 class AIProviderFailure extends Failure {
-  const AIProviderFailure({
-    required String message,
-    int? code,
-  }) : super(message: message, code: code);
+  const AIProviderFailure({required super.message, super.code});
 }
 
 /// Failure when rate limit is exceeded
@@ -46,8 +34,8 @@ class RateLimitFailure extends Failure {
   const RateLimitFailure({
     required this.provider,
     this.retryAfter,
-    String message = 'Rate limit exceeded',
-  }) : super(message: message);
+    super.message = 'Rate limit exceeded',
+  });
 
   @override
   List<Object?> get props => [message, code, provider, retryAfter];
@@ -55,20 +43,14 @@ class RateLimitFailure extends Failure {
 
 /// Failure when cached data is not available
 class CacheFailure extends Failure {
-  const CacheFailure({
-    String message = 'Cache error occurred',
-    int? code,
-  }) : super(message: message, code: code);
+  const CacheFailure({super.message = 'Cache error occurred', super.code});
 }
 
 /// Failure for validation errors
 class ValidationFailure extends Failure {
   final Map<String, List<String>>? errors;
 
-  const ValidationFailure({
-    required String message,
-    this.errors,
-  }) : super(message: message);
+  const ValidationFailure({required super.message, this.errors});
 
   @override
   List<Object?> get props => [message, errors];
@@ -76,15 +58,72 @@ class ValidationFailure extends Failure {
 
 /// Failure for unauthorized access
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure({
-    String message = 'Unauthorized access',
-  }) : super(message: message);
+  const UnauthorizedFailure({super.message = 'Unauthorized access'});
 }
 
 /// Failure for parsing errors
 class ParsingFailure extends Failure {
-  const ParsingFailure({
-    String message = 'Failed to parse data',
-    int? code,
-  }) : super(message: message, code: code);
+  const ParsingFailure({super.message = 'Failed to parse data', super.code});
+}
+
+/// Failure when user quota is exceeded
+class UserQuotaExceededFailure extends Failure {
+  final String userTier;
+  final String quotaType; // daily, monthly, tokens
+  final DateTime? resetTime;
+  final String? upgradeSuggestion;
+
+  const UserQuotaExceededFailure({
+    required super.message,
+    required this.userTier,
+    required this.quotaType,
+    this.resetTime,
+    this.upgradeSuggestion,
+  });
+
+  @override
+  List<Object?> get props => [
+    message,
+    userTier,
+    quotaType,
+    resetTime,
+    upgradeSuggestion,
+  ];
+}
+
+/// Failure when subscription has expired
+class SubscriptionExpiredFailure extends Failure {
+  final DateTime expiredAt;
+  final String previousTier;
+
+  const SubscriptionExpiredFailure({
+    super.message = 'Subscription has expired',
+    required this.expiredAt,
+    required this.previousTier,
+  });
+
+  @override
+  List<Object?> get props => [message, expiredAt, previousTier];
+}
+
+/// Failure when token limit is exceeded for a specific message
+class TokenLimitExceededFailure extends Failure {
+  final int requestedTokens;
+  final int availableTokens;
+  final String provider;
+
+  const TokenLimitExceededFailure({
+    required super.message,
+    required this.requestedTokens,
+    required this.availableTokens,
+    required this.provider,
+  });
+
+  @override
+  List<Object?> get props => [
+    message,
+    requestedTokens,
+    availableTokens,
+    provider,
+  ];
 }

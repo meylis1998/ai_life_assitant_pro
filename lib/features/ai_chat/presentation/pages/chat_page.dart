@@ -33,9 +33,7 @@ class _ChatPageState extends State<ChatPage> {
     _chatBloc = sl<ChatBloc>();
 
     // Start a new conversation
-    _chatBloc.add(const StartNewConversationEvent(
-      title: 'New Chat',
-    ));
+    _chatBloc.add(const StartNewConversationEvent(title: 'New Chat'));
   }
 
   @override
@@ -61,11 +59,13 @@ class _ChatPageState extends State<ChatPage> {
 
     _messageController.clear();
 
-    _chatBloc.add(StreamMessageEvent(
-      message: message,
-      provider: _chatBloc.state.currentProvider,
-      conversationId: _chatBloc.state.conversation?.id,
-    ));
+    _chatBloc.add(
+      StreamMessageEvent(
+        message: message,
+        provider: _chatBloc.state.currentProvider,
+        conversationId: _chatBloc.state.conversation?.id,
+      ),
+    );
 
     // Scroll to bottom after sending
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -115,7 +115,9 @@ class _ChatPageState extends State<ChatPage> {
                           onPressed: () {
                             if (state.failedMessage != null) {
                               context.read<ChatBloc>().add(
-                                RetryMessageEvent(message: state.failedMessage!),
+                                RetryMessageEvent(
+                                  message: state.failedMessage!,
+                                ),
                               );
                             }
                           },
@@ -126,9 +128,7 @@ class _ChatPageState extends State<ChatPage> {
                 },
                 builder: (context, state) {
                   if (state is ChatLoading && state.conversation == null) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   final messages = state.conversation?.messages ?? [];
@@ -148,41 +148,45 @@ class _ChatPageState extends State<ChatPage> {
                       if (index < messages.length) {
                         final message = messages[index];
                         return MessageBubble(
-                          message: message,
-                          onDelete: () {
-                            context.read<ChatBloc>().add(
-                              DeleteMessageEvent(messageId: message.id),
-                            );
-                          },
-                        ).animate()
+                              message: message,
+                              onDelete: () {
+                                context.read<ChatBloc>().add(
+                                  DeleteMessageEvent(messageId: message.id),
+                                );
+                              },
+                            )
+                            .animate()
                             .fadeIn(duration: 300.ms)
                             .slideX(
-                              begin: message.role == MessageRole.user ? 0.2 : -0.2,
+                              begin: message.role == MessageRole.user
+                                  ? 0.2
+                                  : -0.2,
                             );
                       } else {
                         // Streaming indicator
                         return Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.only(
-                              bottom: 8,
-                              right: 60,
-                            ),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                  bottom: 8,
+                                  right: 60,
                                 ),
-                              ],
-                            ),
-                            child: const TypingIndicator(),
-                          ),
-                        ).animate()
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const TypingIndicator(),
+                              ),
+                            )
+                            .animate()
                             .fadeIn(duration: 300.ms)
                             .slideX(begin: -0.2);
                       }
@@ -221,9 +225,7 @@ class _ChatPageState extends State<ChatPage> {
           icon: const Icon(Icons.add),
           tooltip: 'New Chat',
           onPressed: () {
-            context.read<ChatBloc>().add(
-              const StartNewConversationEvent(),
-            );
+            context.read<ChatBloc>().add(const StartNewConversationEvent());
           },
         ),
         IconButton(
@@ -272,8 +274,7 @@ class _ChatPageState extends State<ChatPage> {
             Icons.chat_bubble_outline,
             size: 80,
             color: Theme.of(context).disabledColor,
-          ).animate()
-              .scale(duration: 500.ms, curve: Curves.elasticOut),
+          ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
           const SizedBox(height: 16),
           Text(
             'Start a conversation',
@@ -299,11 +300,7 @@ class _ChatPageState extends State<ChatPage> {
                 'Tell me a joke',
                 Icons.emoji_emotions,
               ),
-              _buildSuggestionChip(
-                context,
-                'Help me code',
-                Icons.code,
-              ),
+              _buildSuggestionChip(context, 'Help me code', Icons.code),
               _buildSuggestionChip(
                 context,
                 'Plan my day',
@@ -333,10 +330,6 @@ class _ChatPageState extends State<ChatPage> {
         _messageController.text = label;
         _sendMessage();
       },
-    ).animate()
-        .scale(
-          duration: 300.ms,
-          curve: Curves.elasticOut,
-        );
+    ).animate().scale(duration: 300.ms, curve: Curves.elasticOut);
   }
 }

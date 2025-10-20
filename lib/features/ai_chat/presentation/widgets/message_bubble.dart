@@ -10,11 +10,7 @@ class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final VoidCallback? onDelete;
 
-  const MessageBubble({
-    super.key,
-    required this.message,
-    this.onDelete,
-  });
+  const MessageBubble({super.key, required this.message, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +26,9 @@ class MessageBubble extends StatelessWidget {
           right: isUser ? 0 : 60,
         ),
         child: Column(
-          crossAxisAlignment:
-              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             // Provider label for assistant messages
             if (!isUser && message.provider != null)
@@ -52,7 +49,9 @@ class MessageBubble extends StatelessWidget {
                     Text(
                       message.provider!.displayName,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(
+                          0.7,
+                        ),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -72,9 +71,7 @@ class MessageBubble extends StatelessWidget {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: isUser
-                        ? AppTheme.primaryColor
-                        : theme.cardColor,
+                    color: isUser ? AppTheme.primaryColor : theme.cardColor,
                     borderRadius: BorderRadius.circular(16).copyWith(
                       bottomRight: isUser ? const Radius.circular(4) : null,
                       bottomLeft: !isUser ? const Radius.circular(4) : null,
@@ -169,7 +166,9 @@ class MessageBubble extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
           h2: TextStyle(
-            color: isUser ? Colors.white : theme.textTheme.headlineMedium?.color,
+            color: isUser
+                ? Colors.white
+                : theme.textTheme.headlineMedium?.color,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -226,10 +225,7 @@ class MessageBubble extends StatelessWidget {
             ),
             if (onDelete != null)
               ListTile(
-                leading: Icon(
-                  Icons.delete,
-                  color: AppTheme.errorColor,
-                ),
+                leading: Icon(Icons.delete, color: AppTheme.errorColor),
                 title: Text(
                   'Delete',
                   style: TextStyle(color: AppTheme.errorColor),

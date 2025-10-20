@@ -40,7 +40,9 @@ abstract class AIChatRepository {
   Future<Either<Failure, bool>> isProviderAvailable(AIProvider provider);
 
   /// Get the current rate limit status for a provider
-  Future<Either<Failure, Map<String, dynamic>>> getRateLimitStatus(AIProvider provider);
+  Future<Either<Failure, Map<String, dynamic>>> getRateLimitStatus(
+    AIProvider provider,
+  );
 
   /// Switch to a different AI provider
   Future<Either<Failure, void>> switchProvider(AIProvider provider);

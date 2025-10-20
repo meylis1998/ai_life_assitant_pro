@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_theme.dart';
 
@@ -146,9 +145,7 @@ class _ChatInputFieldState extends State<ChatInputField> {
                       ? AppTheme.primaryColor
                       : theme.disabledColor,
                 ),
-                onPressed: _hasText && widget.isEnabled
-                    ? widget.onSend
-                    : null,
+                onPressed: _hasText && widget.isEnabled ? widget.onSend : null,
                 tooltip: 'Send message',
               ),
             ),

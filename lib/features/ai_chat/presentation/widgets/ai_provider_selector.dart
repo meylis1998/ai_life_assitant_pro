@@ -116,11 +116,7 @@ class _ProviderChip extends StatelessWidget {
               ),
               if (isSelected) ...[
                 const SizedBox(width: 4),
-                Icon(
-                  Icons.check_circle,
-                  size: 16,
-                  color: color,
-                ),
+                Icon(Icons.check_circle, size: 16, color: color),
               ],
             ],
           ),

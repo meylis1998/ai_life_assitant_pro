@@ -1,33 +1,27 @@
 /// Custom exceptions for data layer
 /// These exceptions are thrown from data sources and caught in repositories
+library;
 
 /// Base exception class
 abstract class AppException implements Exception {
   final String message;
   final int? code;
 
-  const AppException({
-    required this.message,
-    this.code,
-  });
+  const AppException({required this.message, this.code});
 
   @override
-  String toString() => '$runtimeType: $message ${code != null ? "(Code: $code)" : ""}';
+  String toString() =>
+      '$runtimeType: $message ${code != null ? "(Code: $code)" : ""}';
 }
 
 /// Exception when there's an error from the server
 class ServerException extends AppException {
-  const ServerException({
-    String message = 'Server error',
-    int? code,
-  }) : super(message: message, code: code);
+  const ServerException({super.message = 'Server error', super.code});
 }
 
 /// Exception when there's no internet connection
 class NetworkException extends AppException {
-  const NetworkException({
-    String message = 'Network error',
-  }) : super(message: message);
+  const NetworkException({super.message = 'Network error'});
 }
 
 /// Exception related to AI provider operations
@@ -36,9 +30,9 @@ class AIProviderException extends AppException {
 
   const AIProviderException({
     required this.provider,
-    required String message,
-    int? code,
-  }) : super(message: message, code: code);
+    required super.message,
+    super.code,
+  });
 }
 
 /// Exception when rate limit is exceeded
@@ -49,45 +43,33 @@ class RateLimitException extends AppException {
   const RateLimitException({
     required this.provider,
     this.retryAfter,
-    String message = 'Rate limit exceeded',
-  }) : super(message: message);
+    super.message = 'Rate limit exceeded',
+  });
 }
 
 /// Exception when cached data operations fail
 class CacheException extends AppException {
-  const CacheException({
-    String message = 'Cache error',
-  }) : super(message: message);
+  const CacheException({super.message = 'Cache error'});
 }
 
 /// Exception for validation errors
 class ValidationException extends AppException {
   final Map<String, List<String>>? errors;
 
-  const ValidationException({
-    required String message,
-    this.errors,
-  }) : super(message: message);
+  const ValidationException({required super.message, this.errors});
 }
 
 /// Exception for unauthorized access
 class UnauthorizedException extends AppException {
-  const UnauthorizedException({
-    String message = 'Unauthorized',
-  }) : super(message: message);
+  const UnauthorizedException({super.message = 'Unauthorized'});
 }
 
 /// Exception for parsing errors
 class ParsingException extends AppException {
-  const ParsingException({
-    String message = 'Parsing failed',
-    int? code,
-  }) : super(message: message, code: code);
+  const ParsingException({super.message = 'Parsing failed', super.code});
 }
 
 /// Exception for file operations
 class FileException extends AppException {
-  const FileException({
-    required String message,
-  }) : super(message: message);
+  const FileException({required super.message});
 }

@@ -20,25 +20,27 @@ class TypingIndicator extends StatelessWidget {
 
   Widget _buildDot(int index) {
     return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: Colors.grey[400],
-        shape: BoxShape.circle,
-      ),
-    ).animate(
-      onPlay: (controller) => controller.repeat(),
-    ).scale(
-      duration: const Duration(milliseconds: 600),
-      delay: Duration(milliseconds: index * 200),
-      begin: const Offset(1, 1),
-      end: const Offset(1.3, 1.3),
-      curve: Curves.easeInOut,
-    ).then().scale(
-      duration: const Duration(milliseconds: 600),
-      begin: const Offset(1.3, 1.3),
-      end: const Offset(1, 1),
-      curve: Curves.easeInOut,
-    );
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.grey[400],
+            shape: BoxShape.circle,
+          ),
+        )
+        .animate(onPlay: (controller) => controller.repeat())
+        .scale(
+          duration: const Duration(milliseconds: 600),
+          delay: Duration(milliseconds: index * 200),
+          begin: const Offset(1, 1),
+          end: const Offset(1.3, 1.3),
+          curve: Curves.easeInOut,
+        )
+        .then()
+        .scale(
+          duration: const Duration(milliseconds: 600),
+          begin: const Offset(1.3, 1.3),
+          end: const Offset(1, 1),
+          curve: Curves.easeInOut,
+        );
   }
 }

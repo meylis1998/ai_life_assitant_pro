@@ -19,8 +19,6 @@ class NetworkInfoImpl implements NetworkInfo {
   }
 
   @override
-  Stream<bool> get onConnectivityChanged =>
-      _connectivity.onConnectivityChanged.map(
-        (result) => result != ConnectivityResult.none,
-      );
+  Stream<bool> get onConnectivityChanged => _connectivity.onConnectivityChanged
+      .map((result) => result != ConnectivityResult.none);
 }

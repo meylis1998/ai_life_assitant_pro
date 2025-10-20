@@ -21,14 +21,16 @@ class ApiClient {
     );
 
     if (kDebugMode) {
-      _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        error: true,
-        requestHeader: true,
-        responseHeader: true,
-        request: true,
-      ));
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          error: true,
+          requestHeader: true,
+          responseHeader: true,
+          request: true,
+        ),
+      );
     }
 
     _dio.interceptors.add(
@@ -38,11 +40,15 @@ class ApiClient {
           handler.next(options);
         },
         onResponse: (response, handler) {
-          AppLogger.i('✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
+          AppLogger.i(
+            '✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}',
+          );
           handler.next(response);
         },
         onError: (DioException error, handler) {
-          AppLogger.e('❌ ERROR[${error.response?.statusCode}] => PATH: ${error.requestOptions.path}');
+          AppLogger.e(
+            '❌ ERROR[${error.response?.statusCode}] => PATH: ${error.requestOptions.path}',
+          );
           handler.next(error);
         },
       ),

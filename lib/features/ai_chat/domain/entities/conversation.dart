@@ -20,10 +20,10 @@ class Conversation extends Equatable {
     DateTime? updatedAt,
     this.defaultProvider,
     this.metadata,
-  })  : id = id ?? const Uuid().v4(),
-        messages = messages ?? [],
-        createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : id = id ?? const Uuid().v4(),
+       messages = messages ?? [],
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   /// Create a copy of the conversation with updated fields
   Conversation copyWith({
@@ -60,19 +60,15 @@ class Conversation extends Equatable {
       return msg.id == messageId ? updatedMessage : msg;
     }).toList();
 
-    return copyWith(
-      messages: updatedMessages,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(messages: updatedMessages, updatedAt: DateTime.now());
   }
 
   /// Remove a message from the conversation
   Conversation removeMessage(String messageId) {
-    final updatedMessages = messages.where((msg) => msg.id != messageId).toList();
-    return copyWith(
-      messages: updatedMessages,
-      updatedAt: DateTime.now(),
-    );
+    final updatedMessages = messages
+        .where((msg) => msg.id != messageId)
+        .toList();
+    return copyWith(messages: updatedMessages, updatedAt: DateTime.now());
   }
 
   /// Get the last message in the conversation
@@ -80,13 +76,17 @@ class Conversation extends Equatable {
 
   /// Get the last user message
   ChatMessage? get lastUserMessage {
-    final userMessages = messages.where((msg) => msg.role == MessageRole.user).toList();
+    final userMessages = messages
+        .where((msg) => msg.role == MessageRole.user)
+        .toList();
     return userMessages.isNotEmpty ? userMessages.last : null;
   }
 
   /// Get the last assistant message
   ChatMessage? get lastAssistantMessage {
-    final assistantMessages = messages.where((msg) => msg.role == MessageRole.assistant).toList();
+    final assistantMessages = messages
+        .where((msg) => msg.role == MessageRole.assistant)
+        .toList();
     return assistantMessages.isNotEmpty ? assistantMessages.last : null;
   }
 
@@ -98,14 +98,14 @@ class Conversation extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        messages,
-        createdAt,
-        updatedAt,
-        defaultProvider,
-        metadata,
-      ];
+    id,
+    title,
+    messages,
+    createdAt,
+    updatedAt,
+    defaultProvider,
+    metadata,
+  ];
 
   @override
   String toString() {

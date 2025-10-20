@@ -39,7 +39,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
       // Get conversation history if ID provided
       List<ChatMessage>? history;
       if (conversationId != null) {
-        final cachedConversation = await localDataSource.getCachedConversation(conversationId);
+        final cachedConversation = await localDataSource.getCachedConversation(
+          conversationId,
+        );
         history = cachedConversation?.messages;
       }
 
@@ -59,11 +61,13 @@ class AIChatRepositoryImpl implements AIChatRepository {
     } on AIProviderException catch (e) {
       return Left(AIProviderFailure(message: e.message));
     } on RateLimitException catch (e) {
-      return Left(RateLimitFailure(
-        provider: e.provider,
-        message: e.message,
-        retryAfter: e.retryAfter,
-      ));
+      return Left(
+        RateLimitFailure(
+          provider: e.provider,
+          message: e.message,
+          retryAfter: e.retryAfter,
+        ),
+      );
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, code: e.code));
     } on NetworkException catch (e) {
@@ -91,7 +95,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
       // Get conversation history if ID provided
       List<ChatMessage>? history;
       if (conversationId != null) {
-        final cachedConversation = await localDataSource.getCachedConversation(conversationId);
+        final cachedConversation = await localDataSource.getCachedConversation(
+          conversationId,
+        );
         history = cachedConversation?.messages;
       }
 
@@ -122,11 +128,13 @@ class AIChatRepositoryImpl implements AIChatRepository {
     } on AIProviderException catch (e) {
       yield Left(AIProviderFailure(message: e.message));
     } on RateLimitException catch (e) {
-      yield Left(RateLimitFailure(
-        provider: e.provider,
-        message: e.message,
-        retryAfter: e.retryAfter,
-      ));
+      yield Left(
+        RateLimitFailure(
+          provider: e.provider,
+          message: e.message,
+          retryAfter: e.retryAfter,
+        ),
+      );
     } on ServerException catch (e) {
       yield Left(ServerFailure(message: e.message, code: e.code));
     } on NetworkException catch (e) {
@@ -138,9 +146,13 @@ class AIChatRepositoryImpl implements AIChatRepository {
   }
 
   @override
-  Future<Either<Failure, Conversation>> getChatHistory(String conversationId) async {
+  Future<Either<Failure, Conversation>> getChatHistory(
+    String conversationId,
+  ) async {
     try {
-      final cachedConversation = await localDataSource.getCachedConversation(conversationId);
+      final cachedConversation = await localDataSource.getCachedConversation(
+        conversationId,
+      );
 
       if (cachedConversation != null) {
         return Right(cachedConversation);
@@ -169,7 +181,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
   }
 
   @override
-  Future<Either<Failure, void>> saveConversation(Conversation conversation) async {
+  Future<Either<Failure, void>> saveConversation(
+    Conversation conversation,
+  ) async {
     try {
       final model = ConversationModel.fromEntity(conversation);
       await localDataSource.cacheConversation(model);
@@ -184,7 +198,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
   }
 
   @override
-  Future<Either<Failure, void>> deleteConversation(String conversationId) async {
+  Future<Either<Failure, void>> deleteConversation(
+    String conversationId,
+  ) async {
     try {
       await localDataSource.deleteCachedConversation(conversationId);
       return const Right(null);
@@ -221,7 +237,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> getRateLimitStatus(AIProvider provider) async {
+  Future<Either<Failure, Map<String, dynamic>>> getRateLimitStatus(
+    AIProvider provider,
+  ) async {
     try {
       // TODO: Implement actual rate limit tracking
       // For now, return mock data
@@ -229,12 +247,16 @@ class AIChatRepositoryImpl implements AIChatRepository {
         'provider': provider.apiName,
         'remaining': 60,
         'limit': 60,
-        'resetsAt': DateTime.now().add(const Duration(minutes: 1)).toIso8601String(),
+        'resetsAt': DateTime.now()
+            .add(const Duration(minutes: 1))
+            .toIso8601String(),
       };
       return Right(status);
     } catch (e) {
       AppLogger.e('Error getting rate limit status', error: e);
-      return Left(ServerFailure(message: 'Failed to get rate limit status: $e'));
+      return Left(
+        ServerFailure(message: 'Failed to get rate limit status: $e'),
+      );
     }
   }
 
@@ -244,9 +266,11 @@ class AIChatRepositoryImpl implements AIChatRepository {
       // Check if provider is available
       final isAvailable = await remoteDataSource.isProviderAvailable(provider);
       if (!isAvailable) {
-        return Left(AIProviderFailure(
-          message: '${provider.displayName} is not configured',
-        ));
+        return Left(
+          AIProviderFailure(
+            message: '${provider.displayName} is not configured',
+          ),
+        );
       }
 
       // Save provider preference
@@ -276,7 +300,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
   }) async {
     try {
       // TODO: Implement document upload for RAG
-      return const Left(ServerFailure(message: 'Document upload not yet implemented'));
+      return const Left(
+        ServerFailure(message: 'Document upload not yet implemented'),
+      );
     } catch (e) {
       AppLogger.e('Error uploading document', error: e);
       return Left(ServerFailure(message: 'Failed to upload document: $e'));
@@ -291,7 +317,9 @@ class AIChatRepositoryImpl implements AIChatRepository {
   }) async {
     try {
       // TODO: Implement document query using RAG
-      return const Left(ServerFailure(message: 'Document query not yet implemented'));
+      return const Left(
+        ServerFailure(message: 'Document query not yet implemented'),
+      );
     } catch (e) {
       AppLogger.e('Error querying document', error: e);
       return Left(ServerFailure(message: 'Failed to query document: $e'));
@@ -306,25 +334,22 @@ class AIChatRepositoryImpl implements AIChatRepository {
   ) async {
     try {
       // Get existing conversation or create new one
-      var conversation = await localDataSource.getCachedConversation(conversationId);
+      var conversation = await localDataSource.getCachedConversation(
+        conversationId,
+      );
 
-      if (conversation == null) {
-        conversation = ConversationModel(
-          id: conversationId,
-          title: userMessage.length > 50
-              ? '${userMessage.substring(0, 50)}...'
-              : userMessage,
-          messages: [],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-      }
+      conversation ??= ConversationModel(
+        id: conversationId,
+        title: userMessage.length > 50
+            ? '${userMessage.substring(0, 50)}...'
+            : userMessage,
+        messages: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
       // Add user message
-      final userMsg = ChatMessage(
-        content: userMessage,
-        role: MessageRole.user,
-      );
+      final userMsg = ChatMessage(content: userMessage, role: MessageRole.user);
 
       // Update conversation with new messages
       final updatedConversation = conversation

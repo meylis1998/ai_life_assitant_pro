@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart'
     hide ServerException;
 
@@ -44,24 +43,25 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
   }
 
   /// Initialize AI providers
+  /// Note: API keys will be fetched from user's Firestore profile when needed
   void _initializeProviders() {
-    // Initialize Gemini
-    final geminiKey = dotenv.env['GEMINI_API_KEY'];
-    if (geminiKey != null && geminiKey.isNotEmpty) {
-      _geminiModel = GenerativeModel(
-        model: 'gemini-pro',
-        apiKey: geminiKey,
-        generationConfig: GenerationConfig(
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        ),
-      );
-      AppLogger.i('Gemini model initialized');
-    } else {
-      AppLogger.w('Gemini API key not found');
-    }
+    // Providers will be initialized on-demand when user provides API keys
+    AppLogger.i('AI providers ready for on-demand initialization');
+  }
+
+  /// Initialize Gemini model with user's API key
+  void _initializeGemini(String apiKey) {
+    _geminiModel = GenerativeModel(
+      model: 'gemini-pro',
+      apiKey: apiKey,
+      generationConfig: GenerationConfig(
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      ),
+    );
+    AppLogger.i('Gemini model initialized');
   }
 
   @override
@@ -136,13 +136,15 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
 
   @override
   Future<bool> isProviderAvailable(AIProvider provider) async {
+    // TODO: Check user's Firestore profile for API keys
+    // For now, return false as providers need to be configured by user
     switch (provider) {
       case AIProvider.gemini:
         return _geminiModel != null;
       case AIProvider.claude:
-        return dotenv.env['CLAUDE_API_KEY']?.isNotEmpty ?? false;
+        return false; // Will be true when user configures API key
       case AIProvider.openai:
-        return dotenv.env['OPENAI_API_KEY']?.isNotEmpty ?? false;
+        return false; // Will be true when user configures API key
     }
   }
 
@@ -223,25 +225,10 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
     String message,
     List<ChatMessage>? history,
   ) async {
-    final apiKey = dotenv.env['CLAUDE_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw const AIProviderException(
-        provider: 'claude',
-        message: 'Claude API key not configured',
-      );
-    }
-
-    // TODO: Implement Claude API integration
-    // For now, return a mock response
-    await Future.delayed(const Duration(seconds: 1));
-
-    return ChatMessageModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      content: 'Claude response to: $message (Not yet implemented)',
-      role: MessageRole.assistant,
-      timestamp: DateTime.now(),
-      provider: AIProvider.claude,
-      status: MessageStatus.sent,
+    // TODO: Get API key from user's Firestore profile
+    throw const AIProviderException(
+      provider: 'claude',
+      message: 'Claude API key not configured. Please add your API key in settings.',
     );
   }
 
@@ -259,25 +246,10 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
     String message,
     List<ChatMessage>? history,
   ) async {
-    final apiKey = dotenv.env['OPENAI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw const AIProviderException(
-        provider: 'openai',
-        message: 'OpenAI API key not configured',
-      );
-    }
-
-    // TODO: Implement OpenAI API integration
-    // For now, return a mock response
-    await Future.delayed(const Duration(seconds: 1));
-
-    return ChatMessageModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      content: 'OpenAI response to: $message (Not yet implemented)',
-      role: MessageRole.assistant,
-      timestamp: DateTime.now(),
-      provider: AIProvider.openai,
-      status: MessageStatus.sent,
+    // TODO: Get API key from user's Firestore profile
+    throw const AIProviderException(
+      provider: 'openai',
+      message: 'OpenAI API key not configured. Please add your API key in settings.',
     );
   }
 

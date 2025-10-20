@@ -46,12 +46,12 @@ class AIChatLocalDataSourceImpl implements AIChatLocalDataSource {
   static const String _currentProviderKey = AppConstants.aiProviderKey;
   static const String _lastConversationKey = 'last_conversation_id';
 
-  AIChatLocalDataSourceImpl({
-    required this.sharedPreferences,
-  });
+  AIChatLocalDataSourceImpl({required this.sharedPreferences});
 
   @override
-  Future<ConversationModel?> getCachedConversation(String conversationId) async {
+  Future<ConversationModel?> getCachedConversation(
+    String conversationId,
+  ) async {
     try {
       final key = '$_conversationPrefix$conversationId';
       final jsonString = sharedPreferences.getString(key);
@@ -71,7 +71,8 @@ class AIChatLocalDataSourceImpl implements AIChatLocalDataSource {
   @override
   Future<List<ConversationModel>> getAllCachedConversations() async {
     try {
-      final conversationIds = sharedPreferences.getStringList(_conversationListKey) ?? [];
+      final conversationIds =
+          sharedPreferences.getStringList(_conversationListKey) ?? [];
       final conversations = <ConversationModel>[];
 
       for (final id in conversationIds) {
@@ -101,10 +102,14 @@ class AIChatLocalDataSourceImpl implements AIChatLocalDataSource {
       await sharedPreferences.setString(key, jsonString);
 
       // Update conversation list
-      final conversationIds = sharedPreferences.getStringList(_conversationListKey) ?? [];
+      final conversationIds =
+          sharedPreferences.getStringList(_conversationListKey) ?? [];
       if (!conversationIds.contains(conversation.id)) {
         conversationIds.add(conversation.id);
-        await sharedPreferences.setStringList(_conversationListKey, conversationIds);
+        await sharedPreferences.setStringList(
+          _conversationListKey,
+          conversationIds,
+        );
       }
 
       AppLogger.i('Cached conversation ${conversation.id}');
@@ -121,21 +126,28 @@ class AIChatLocalDataSourceImpl implements AIChatLocalDataSource {
       await sharedPreferences.remove(key);
 
       // Update conversation list
-      final conversationIds = sharedPreferences.getStringList(_conversationListKey) ?? [];
+      final conversationIds =
+          sharedPreferences.getStringList(_conversationListKey) ?? [];
       conversationIds.remove(conversationId);
-      await sharedPreferences.setStringList(_conversationListKey, conversationIds);
+      await sharedPreferences.setStringList(
+        _conversationListKey,
+        conversationIds,
+      );
 
       AppLogger.i('Deleted cached conversation $conversationId');
     } catch (e) {
       AppLogger.e('Error deleting cached conversation', error: e);
-      throw const CacheException(message: 'Failed to delete cached conversation');
+      throw const CacheException(
+        message: 'Failed to delete cached conversation',
+      );
     }
   }
 
   @override
   Future<void> clearAllCachedConversations() async {
     try {
-      final conversationIds = sharedPreferences.getStringList(_conversationListKey) ?? [];
+      final conversationIds =
+          sharedPreferences.getStringList(_conversationListKey) ?? [];
 
       // Remove each conversation
       for (final id in conversationIds) {
@@ -149,7 +161,9 @@ class AIChatLocalDataSourceImpl implements AIChatLocalDataSource {
       AppLogger.i('Cleared all cached conversations');
     } catch (e) {
       AppLogger.e('Error clearing cached conversations', error: e);
-      throw const CacheException(message: 'Failed to clear cached conversations');
+      throw const CacheException(
+        message: 'Failed to clear cached conversations',
+      );
     }
   }
 

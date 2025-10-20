@@ -52,6 +52,18 @@ class AppConstants {
   static const List<String> supportedLanguages = ['en', 'es', 'fr', 'de', 'zh'];
 
   // Supported File Extensions
-  static const List<String> supportedDocuments = ['pdf', 'txt', 'md', 'doc', 'docx'];
-  static const List<String> supportedImages = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+  static const List<String> supportedDocuments = [
+    'pdf',
+    'txt',
+    'md',
+    'doc',
+    'docx',
+  ];
+  static const List<String> supportedImages = [
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+  ];
 }
