@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import '../../../usage_tracking/domain/entities/quota_status.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/entities/conversation.dart';
 
@@ -10,7 +9,6 @@ abstract class ChatState extends Equatable {
   final bool isStreaming;
   final String? streamingContent;
   final String? error;
-  final QuotaStatus? quotaStatus;
   final String? userId;
 
   const ChatState({
@@ -19,7 +17,6 @@ abstract class ChatState extends Equatable {
     this.isStreaming = false,
     this.streamingContent,
     this.error,
-    this.quotaStatus,
     this.userId,
   });
 
@@ -30,7 +27,6 @@ abstract class ChatState extends Equatable {
     isStreaming,
     streamingContent,
     error,
-    quotaStatus,
     userId,
   ];
 }
@@ -132,101 +128,4 @@ class NewConversationStarted extends ChatState {
     required Conversation super.conversation,
     super.currentProvider,
   });
-}
-
-/// Quota exceeded state
-class QuotaExceeded extends ChatState {
-  final String userTier;
-  final String quotaType;
-  final DateTime? resetTime;
-  final String? upgradeSuggestion;
-  final int remainingMessages;
-  final int remainingTokens;
-
-  const QuotaExceeded({
-    required this.userTier,
-    required this.quotaType,
-    this.resetTime,
-    this.upgradeSuggestion,
-    required this.remainingMessages,
-    required this.remainingTokens,
-    super.conversation,
-    super.currentProvider,
-    super.quotaStatus,
-  }) : super(error: 'Quota exceeded');
-
-  String get formattedResetTime {
-    if (resetTime == null) return '';
-    final duration = resetTime!.difference(DateTime.now());
-    if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
-    } else if (duration.inMinutes > 0) {
-      return '${duration.inMinutes}m';
-    } else {
-      return 'Less than a minute';
-    }
-  }
-
-  @override
-  List<Object?> get props => [
-    ...super.props,
-    userTier,
-    quotaType,
-    resetTime,
-    upgradeSuggestion,
-    remainingMessages,
-    remainingTokens,
-  ];
-}
-
-/// Quota warning state
-class QuotaWarning extends ChatState {
-  final double usagePercentage;
-  final int remainingMessages;
-  final int remainingTokens;
-  final String warningMessage;
-
-  const QuotaWarning({
-    required this.usagePercentage,
-    required this.remainingMessages,
-    required this.remainingTokens,
-    required this.warningMessage,
-    super.conversation,
-    super.currentProvider,
-    super.quotaStatus,
-  });
-
-  @override
-  List<Object?> get props => [
-    ...super.props,
-    usagePercentage,
-    remainingMessages,
-    remainingTokens,
-    warningMessage,
-  ];
-}
-
-/// Usage updated state
-class UsageUpdated extends ChatState {
-  final int messagesUsedToday;
-  final int tokensUsedToday;
-  final double estimatedCost;
-
-  const UsageUpdated({
-    required this.messagesUsedToday,
-    required this.tokensUsedToday,
-    required this.estimatedCost,
-    super.conversation,
-    super.currentProvider,
-    super.quotaStatus,
-    super.userId,
-  });
-
-  @override
-  List<Object?> get props => [
-    ...super.props,
-    messagesUsedToday,
-    tokensUsedToday,
-    estimatedCost,
-  ];
 }

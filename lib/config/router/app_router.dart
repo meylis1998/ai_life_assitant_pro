@@ -8,7 +8,6 @@ import '../../features/auth/presentation/pages/welcome_page.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/ai_chat/presentation/pages/chat_page.dart';
-import '../../features/usage_tracking/presentation/pages/subscription_page.dart';
 import '../../injection_container.dart' as di;
 
 class AppRouter {
@@ -83,16 +82,6 @@ class AppRouter {
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: const SettingsPage(),
-        ),
-      ),
-
-      // Subscription Route (Protected)
-      GoRoute(
-        path: '/subscription',
-        name: 'subscription',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const SubscriptionPage(),
         ),
       ),
     ],

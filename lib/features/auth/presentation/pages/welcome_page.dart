@@ -26,9 +26,9 @@ class _WelcomePageState extends State<WelcomePage> {
       color: Colors.blue,
     ),
     _OnboardingData(
-      title: 'Smart Usage Tracking',
-      description: 'Track your AI usage with detailed analytics. Manage your subscription and quotas easily.',
-      icon: Icons.analytics_outlined,
+      title: 'Personalized Experience',
+      description: 'Customize your AI experience with your preferred providers. Configure your API keys securely.',
+      icon: Icons.tune_outlined,
       color: Colors.green,
     ),
   ];

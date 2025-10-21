@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -54,7 +53,7 @@ abstract class FirebaseAuthDataSource {
   /// Update user profile
   Future<UserModel> updateProfile({String? displayName, String? photoUrl});
 
-  /// Update user preferences in Firestore
+  /// Update user preferences
   Future<void> updatePreferences(Map<String, dynamic> preferences);
 
   /// Send password reset email
@@ -100,21 +99,16 @@ abstract class FirebaseAuthDataSource {
 /// Implementation of Firebase authentication data source
 class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   final firebase_auth.FirebaseAuth firebaseAuth;
-  final FirebaseFirestore firestore;
   final GoogleSignIn googleSignIn;
   final LocalAuthentication localAuth;
   final FlutterSecureStorage secureStorage;
 
   FirebaseAuthDataSourceImpl({
     required this.firebaseAuth,
-    required this.firestore,
     required this.googleSignIn,
     required this.localAuth,
     required this.secureStorage,
   });
-
-  /// Collection reference for users
-  CollectionReference get _usersCollection => firestore.collection('users');
 
   @override
   Future<UserModel?> getCurrentUser() async {
@@ -122,20 +116,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       final firebaseUser = firebaseAuth.currentUser;
       if (firebaseUser == null) return null;
 
-      // Get additional user data from Firestore
-      final userDoc = await _usersCollection.doc(firebaseUser.uid).get();
-
-      if (userDoc.exists) {
-        return UserModel.merge(
-          firebaseUser: firebaseUser,
-          firestoreData: userDoc.data() as Map<String, dynamic>?,
-        );
-      }
-
-      // If no Firestore document exists, create one
-      final userModel = UserModel.fromFirebaseUser(firebaseUser);
-      await _createOrUpdateUserDocument(userModel);
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseUser);
     } catch (e) {
       throw ServerException(message: 'Failed to get current user: $e');
     }
@@ -143,18 +124,9 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
 
   @override
   Stream<UserModel?> get authStateChanges {
-    return firebaseAuth.authStateChanges().asyncMap((firebaseUser) async {
+    return firebaseAuth.authStateChanges().map((firebaseUser) {
       if (firebaseUser == null) return null;
-
-      try {
-        final userDoc = await _usersCollection.doc(firebaseUser.uid).get();
-        return UserModel.merge(
-          firebaseUser: firebaseUser,
-          firestoreData: userDoc.data() as Map<String, dynamic>?,
-        );
-      } catch (e) {
-        return UserModel.fromFirebaseUser(firebaseUser);
-      }
+      return UserModel.fromFirebaseUser(firebaseUser);
     });
   }
 
@@ -188,10 +160,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         throw const ServerException(message: 'Failed to sign in with Google');
       }
 
-      final userModel = UserModel.fromFirebaseUser(userCredential.user!);
-      await _createOrUpdateUserDocument(userModel);
-
-      return userModel;
+      return UserModel.fromFirebaseUser(userCredential.user!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     } catch (e) {
@@ -246,10 +215,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         }
       }
 
-      final userModel = UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-      await _createOrUpdateUserDocument(userModel);
-
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     } catch (e) {
@@ -272,10 +238,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         throw const ServerException(message: 'Failed to sign in');
       }
 
-      final userModel = UserModel.fromFirebaseUser(userCredential.user!);
-      await _createOrUpdateUserDocument(userModel);
-
-      return userModel;
+      return UserModel.fromFirebaseUser(userCredential.user!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }
@@ -301,13 +264,10 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       await userCredential.user!.updateDisplayName(displayName);
       await userCredential.user!.reload();
 
-      final userModel = UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-      await _createOrUpdateUserDocument(userModel);
-
       // Send email verification
       await userCredential.user!.sendEmailVerification();
 
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }
@@ -349,10 +309,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       await currentUser.linkWithCredential(credential);
       await currentUser.reload();
 
-      final userModel = UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-      await _createOrUpdateUserDocument(userModel);
-
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }
@@ -389,10 +346,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       await currentUser.linkWithCredential(oauthCredential);
       await currentUser.reload();
 
-      final userModel = UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-      await _createOrUpdateUserDocument(userModel);
-
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }
@@ -409,10 +363,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       await currentUser.unlink(providerId);
       await currentUser.reload();
 
-      final userModel = UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-      await _createOrUpdateUserDocument(userModel);
-
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }
@@ -439,16 +390,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
 
       await currentUser.reload();
 
-      final userModel = UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-
-      // Update Firestore document
-      await _usersCollection.doc(currentUser.uid).update({
-        if (displayName != null) 'displayName': displayName,
-        if (photoUrl != null) 'photoUrl': photoUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      return userModel;
+      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }
@@ -462,10 +404,11 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         throw const UnauthorizedException(message: 'No authenticated user');
       }
 
-      await _usersCollection.doc(currentUser.uid).update({
-        'preferences': preferences,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Store preferences in secure storage
+      await secureStorage.write(
+        key: 'user_preferences_${currentUser.uid}',
+        value: jsonEncode(preferences),
+      );
     } catch (e) {
       throw ServerException(message: 'Failed to update preferences: $e');
     }
@@ -520,12 +463,6 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       if (currentUser == null) {
         throw const UnauthorizedException(message: 'No authenticated user');
       }
-
-      // Delete user document from Firestore
-      await _usersCollection.doc(currentUser.uid).delete();
-
-      // Delete user chats
-      await firestore.collection('userChats').doc(currentUser.uid).delete();
 
       // Delete the user account
       await currentUser.delete();
@@ -630,12 +567,6 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         key: 'biometric_enabled_${currentUser.uid}',
         value: enabled.toString(),
       );
-
-      // Update Firestore
-      await _usersCollection.doc(currentUser.uid).update({
-        'biometricEnabled': enabled,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
     } catch (e) {
       throw ServerException(
         message: 'Failed to set biometric authentication: $e',
@@ -710,19 +641,6 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       }
     } catch (e) {
       // Silently fail cache clearing
-    }
-  }
-
-  /// Create or update user document in Firestore
-  Future<void> _createOrUpdateUserDocument(UserModel user) async {
-    try {
-      await _usersCollection
-          .doc(user.id)
-          .set(user.toFirestore(), SetOptions(merge: true));
-    } catch (e) {
-      // Non-critical error, log but don't throw
-      // TODO: Use proper logger instead of print in production
-      // logger.e('Failed to create/update user document: $e');
     }
   }
 

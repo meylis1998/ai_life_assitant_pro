@@ -4,11 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_theme.dart';
-import '../../../../injection_container.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
-import '../../../usage_tracking/presentation/bloc/usage_bloc.dart';
-import '../../../usage_tracking/presentation/bloc/usage_state.dart';
 import '../../domain/entities/chat_message.dart';
 import '../bloc/chat_bloc.dart';
 import '../bloc/chat_event.dart';
@@ -28,17 +25,20 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   late ScrollController _scrollController;
   late TextEditingController _messageController;
-  late ChatBloc _chatBloc;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _messageController = TextEditingController();
-    _chatBloc = sl<ChatBloc>();
 
-    // Start a new conversation
-    _chatBloc.add(const StartNewConversationEvent(title: 'New Chat'));
+    // Start a new conversation using the existing BlocProvider from main.dart
+    // Use addPostFrameCallback to ensure the context is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ChatBloc>().add(const StartNewConversationEvent(title: 'New Chat'));
+      }
+    });
   }
 
   @override
@@ -64,11 +64,12 @@ class _ChatPageState extends State<ChatPage> {
 
     _messageController.clear();
 
-    _chatBloc.add(
+    final chatBloc = context.read<ChatBloc>();
+    chatBloc.add(
       StreamMessageEvent(
         message: message,
-        provider: _chatBloc.state.currentProvider,
-        conversationId: _chatBloc.state.conversation?.id,
+        provider: chatBloc.state.currentProvider,
+        conversationId: chatBloc.state.conversation?.id,
       ),
     );
 
@@ -80,9 +81,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => _chatBloc,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: _buildAppBar(context),
         body: Column(
@@ -90,24 +89,15 @@ class _ChatPageState extends State<ChatPage> {
             // Provider selector
             BlocBuilder<ChatBloc, ChatState>(
               builder: (context, chatState) {
-                return BlocBuilder<UsageBloc, UsageState>(
-                  builder: (context, usageState) {
-                    String userTier = 'free';
-                    if (usageState.usageStats != null) {
-                      userTier = usageState.usageStats!.userTier;
-                    }
-
-                    return AIProviderSelector(
-                      currentProvider: chatState.currentProvider,
-                      userTier: userTier,
-                      onProviderChanged: (provider) {
-                        context.read<ChatBloc>().add(
-                          SwitchProviderEvent(provider: provider),
-                        );
-                      },
-                    ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.5);
+                return AIProviderSelector(
+                  currentProvider: chatState.currentProvider,
+                  userTier: 'free',
+                  onProviderChanged: (provider) {
+                    context.read<ChatBloc>().add(
+                      SwitchProviderEvent(provider: provider),
+                    );
                   },
-                );
+                ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.5);
               },
             ),
 
@@ -219,7 +209,6 @@ class _ChatPageState extends State<ChatPage> {
             ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.5),
           ],
         ),
-      ),
     );
   }
 
@@ -233,24 +222,6 @@ class _ChatPageState extends State<ChatPage> {
               Text(
                 state.conversation?.title ?? 'AI Life Assistant',
                 style: Theme.of(context).textTheme.titleMedium,
-              ),
-              // Quota indicator
-              BlocBuilder<UsageBloc, UsageState>(
-                builder: (context, usageState) {
-                  if (usageState.usageStats != null) {
-                    final stats = usageState.usageStats!;
-                    final remaining = stats.getRemainingDailyMessages();
-                    final total = stats.userTier == 'free' ? 50 :
-                                  stats.userTier == 'pro' ? 200 : 999999;
-                    return Text(
-                      '$remaining/$total messages today',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
               ),
             ],
           );
@@ -355,39 +326,23 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                       const SizedBox(height: 4),
                       // Tier badge
-                      BlocBuilder<UsageBloc, UsageState>(
-                        builder: (context, usageState) {
-                          String tier = 'FREE';
-                          if (usageState.usageStats != null) {
-                            tier = usageState.usageStats!.userTier.toUpperCase();
-                          }
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tier == 'FREE'
-                                  ? Colors.green.withAlpha(51)
-                                  : tier == 'PRO'
-                                      ? Colors.purple.withAlpha(51)
-                                      : Colors.orange.withAlpha(51),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              tier,
-                              style: TextStyle(
-                                color: tier == 'FREE'
-                                    ? Colors.green
-                                    : tier == 'PRO'
-                                        ? Colors.purple
-                                        : Colors.orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                              ),
-                            ),
-                          );
-                        },
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withAlpha(51),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'FREE',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -400,16 +355,6 @@ class _ChatPageState extends State<ChatPage> {
                       Icon(Icons.settings),
                       SizedBox(width: 12),
                       Text('Settings'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'subscription',
-                  child: Row(
-                    children: [
-                      Icon(Icons.workspace_premium),
-                      SizedBox(width: 12),
-                      Text('Subscription'),
                     ],
                   ),
                 ),

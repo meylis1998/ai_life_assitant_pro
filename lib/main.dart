@@ -7,7 +7,6 @@ import 'core/constants/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/ai_chat/presentation/bloc/chat_bloc.dart';
-import 'features/usage_tracking/presentation/bloc/usage_bloc.dart';
 import 'injection_container.dart' as di;
 
 void main() async {
@@ -16,11 +15,13 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
 
-  // Initialize dependency injection
+  // Initialize dependency injection (includes Firebase initialization)
   await di.init();
 
-  // Check auth status on app start
-  di.sl<AuthBloc>().add(const AuthCheckRequested());
+  // Check auth status on app start (only if auth is available)
+  if (di.sl.isRegistered<AuthBloc>()) {
+    di.sl<AuthBloc>().add(const AuthCheckRequested());
+  }
 
   runApp(const AILifeAssistantApp());
 }
@@ -32,14 +33,12 @@ class AILifeAssistantApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider<AuthBloc>(
-          create: (context) => di.sl<AuthBloc>(),
-        ),
+        if (di.sl.isRegistered<AuthBloc>())
+          BlocProvider<AuthBloc>(
+            create: (context) => di.sl<AuthBloc>(),
+          ),
         BlocProvider<ChatBloc>(
           create: (context) => di.sl<ChatBloc>(),
-        ),
-        BlocProvider<UsageBloc>(
-          create: (context) => di.sl<UsageBloc>(),
         ),
       ],
       child: MaterialApp.router(

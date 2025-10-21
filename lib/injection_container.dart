@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -11,14 +10,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/network/api_client.dart';
 import 'core/network/network_info.dart';
+import 'core/services/api_key_service.dart';
 import 'core/utils/logger.dart';
+import 'firebase_options.dart';
 
 // Import feature dependencies
 // AI Chat Feature
 import 'features/ai_chat/data/datasources/ai_chat_local_datasource.dart';
 import 'features/ai_chat/data/datasources/ai_chat_remote_datasource.dart';
 import 'features/ai_chat/data/repositories/ai_chat_repository_impl.dart';
-import 'features/ai_chat/data/repositories/ai_chat_repository_impl_enhanced.dart';
 import 'features/ai_chat/domain/repositories/ai_chat_repository.dart';
 import 'features/ai_chat/domain/usecases/get_chat_history.dart';
 import 'features/ai_chat/domain/usecases/send_message.dart';
@@ -38,18 +38,6 @@ import 'features/auth/domain/usecases/sign_out.dart';
 import 'features/auth/domain/usecases/update_user_profile.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
-// Usage Tracking Feature
-import 'features/usage_tracking/data/datasources/usage_local_datasource.dart';
-import 'features/usage_tracking/data/datasources/usage_remote_datasource.dart';
-import 'features/usage_tracking/data/repositories/usage_repository_impl.dart';
-import 'features/usage_tracking/domain/repositories/usage_repository.dart';
-import 'features/usage_tracking/domain/usecases/check_quota.dart';
-import 'features/usage_tracking/domain/usecases/get_quota_status.dart';
-import 'features/usage_tracking/domain/usecases/get_user_subscription.dart';
-import 'features/usage_tracking/domain/usecases/get_user_usage_stats.dart';
-import 'features/usage_tracking/domain/usecases/log_message_usage.dart';
-import 'features/usage_tracking/presentation/bloc/usage_bloc.dart';
-
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -59,19 +47,18 @@ Future<void> init() async {
   // Initialize Firebase
   await _initFirebase();
 
-  // Auth Feature (must be first)
   _initAuthFeature();
 
-  // Usage Tracking Feature (depends on Auth)
-  _initUsageTrackingFeature();
-
-  // AI Chat Feature (depends on Auth and Usage Tracking)
   _initAIChatFeature();
 
   //! Core
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
 
   sl.registerLazySingleton<ApiClient>(() => ApiClient());
+
+  sl.registerLazySingleton<ApiKeyService>(
+    () => ApiKeyService(secureStorage: sl()),
+  );
 
   //! External
   final sharedPreferences = await SharedPreferences.getInstance();
@@ -89,15 +76,15 @@ Future<void> init() async {
 
 // Feature-specific initialization functions
 void _initAIChatFeature() {
-  // Bloc - with enhanced dependencies for usage tracking
-  sl.registerFactory(
+  // Bloc - Singleton to maintain conversation state
+  sl.registerLazySingleton(
     () => ChatBloc(
       sendMessage: sl(),
       streamResponse: sl(),
       getChatHistory: sl(),
-      authRepository: sl(),
-      usageRepository: sl(),
-      usageBloc: sl.isRegistered<UsageBloc>() ? sl<UsageBloc>() : null,
+      authRepository: sl.isRegistered<AuthRepository>()
+          ? sl<AuthRepository>()
+          : null,
     ),
   );
 
@@ -106,33 +93,19 @@ void _initAIChatFeature() {
   sl.registerLazySingleton(() => StreamResponse(sl()));
   sl.registerLazySingleton(() => GetChatHistory(sl()));
 
-  // Repository - use enhanced version if Firebase is available
-  if (sl.isRegistered<firebase_auth.FirebaseAuth>()) {
-    sl.registerLazySingleton<AIChatRepository>(
-      () => AIChatRepositoryImplEnhanced(
-        remoteDataSource: sl(),
-        localDataSource: sl(),
-        networkInfo: sl(),
-        authRepository: sl(),
-        usageRepository: sl(),
-      ),
-    );
-    AppLogger.i('✅ Enhanced AI Chat repository registered');
-  } else {
-    // Fallback to basic repository without auth/usage tracking
-    sl.registerLazySingleton<AIChatRepository>(
-      () => AIChatRepositoryImpl(
-        remoteDataSource: sl(),
-        localDataSource: sl(),
-        networkInfo: sl(),
-      ),
-    );
-    AppLogger.w('⚠️ Using basic AI Chat repository (no auth/usage tracking)');
-  }
+  // Repository
+  sl.registerLazySingleton<AIChatRepository>(
+    () => AIChatRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+  AppLogger.i('✅ AI Chat repository registered');
 
   // Data sources
   sl.registerLazySingleton<AIChatRemoteDataSource>(
-    () => AIChatRemoteDataSourceImpl(apiClient: sl()),
+    () => AIChatRemoteDataSourceImpl(apiClient: sl(), apiKeyService: sl()),
   );
 
   sl.registerLazySingleton<AIChatLocalDataSource>(
@@ -140,51 +113,15 @@ void _initAIChatFeature() {
   );
 }
 
-// Initialize Usage Tracking Feature
-void _initUsageTrackingFeature() {
-  // Check if Firebase is available for remote tracking
-  if (sl.isRegistered<firebase_auth.FirebaseAuth>()) {
-    // Bloc
-    sl.registerLazySingleton(() => UsageBloc(usageRepository: sl()));
-
-    // Use cases
-    sl.registerLazySingleton(() => CheckQuota(sl()));
-    sl.registerLazySingleton(() => GetQuotaStatus(sl()));
-    sl.registerLazySingleton(() => GetUserSubscription(sl()));
-    sl.registerLazySingleton(() => GetUserUsageStats(sl()));
-    sl.registerLazySingleton(() => LogMessageUsage(sl()));
-
-    // Repository
-    sl.registerLazySingleton<UsageRepository>(
-      () => UsageRepositoryImpl(firestore: sl(), networkInfo: sl()),
-    );
-
-    // Data sources
-    sl.registerLazySingleton<UsageRemoteDataSource>(
-      () => UsageRemoteDataSourceImpl(firestore: sl()),
-    );
-
-    sl.registerLazySingleton<UsageLocalDataSource>(
-      () => UsageLocalDataSourceImpl(
-        sharedPreferences: sl(),
-        secureStorage: sl(),
-      ),
-    );
-
-    AppLogger.i('✅ Usage tracking feature initialized');
-  } else {
-    AppLogger.w('⚠️ Usage tracking feature skipped - Firebase not available');
-  }
-}
-
 // Initialize Firebase
 Future<void> _initFirebase() async {
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
     // Register Firebase services
     sl.registerLazySingleton(() => firebase_auth.FirebaseAuth.instance);
-    sl.registerLazySingleton(() => FirebaseFirestore.instance);
     sl.registerLazySingleton(() => GoogleSignIn());
 
     AppLogger.i('✅ Firebase initialized successfully');
@@ -198,8 +135,8 @@ Future<void> _initFirebase() async {
 void _initAuthFeature() {
   // Check if Firebase is available
   if (sl.isRegistered<firebase_auth.FirebaseAuth>()) {
-    // Bloc
-    sl.registerFactory(
+    // Bloc - Singleton so router and UI use the same instance
+    sl.registerLazySingleton(
       () => AuthBloc(
         signInWithGoogle: sl(),
         signInWithApple: sl(),
@@ -209,7 +146,6 @@ void _initAuthFeature() {
         linkAppleAccount: sl(),
         updateUserProfile: sl(),
         authRepository: sl(),
-        usageRepository: sl(),
       ),
     );
 
@@ -231,7 +167,6 @@ void _initAuthFeature() {
     sl.registerLazySingleton<FirebaseAuthDataSource>(
       () => FirebaseAuthDataSourceImpl(
         firebaseAuth: sl(),
-        firestore: sl(),
         googleSignIn: sl(),
         localAuth: sl(),
         secureStorage: sl(),

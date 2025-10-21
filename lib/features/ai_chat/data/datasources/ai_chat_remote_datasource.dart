@@ -8,6 +8,7 @@ import '../../../../core/errors/exceptions.dart'
     show AIProviderException, RateLimitException;
 import '../../../../core/errors/exceptions.dart' as app_exceptions;
 import '../../../../core/network/api_client.dart';
+import '../../../../core/services/api_key_service.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/chat_message.dart';
 import '../models/chat_message_model.dart';
@@ -35,22 +36,25 @@ abstract class AIChatRemoteDataSource {
 /// Implementation of remote data source
 class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
   final ApiClient apiClient;
+  final ApiKeyService apiKeyService;
   GenerativeModel? _geminiModel;
   ChatSession? _geminiChat;
 
-  AIChatRemoteDataSourceImpl({required this.apiClient}) {
-    _initializeProviders();
-  }
+  AIChatRemoteDataSourceImpl({
+    required this.apiClient,
+    required this.apiKeyService,
+  });
 
-  /// Initialize AI providers
-  /// Note: API keys will be fetched from user's Firestore profile when needed
-  void _initializeProviders() {
-    // Providers will be initialized on-demand when user provides API keys
-    AppLogger.i('AI providers ready for on-demand initialization');
-  }
+  /// Initialize Gemini model with user's API key from secure storage
+  Future<void> _initializeGemini() async {
+    final apiKey = await apiKeyService.getGeminiKey();
+    if (apiKey == null || apiKey.isEmpty) {
+      throw const AIProviderException(
+        provider: 'gemini',
+        message: 'Gemini API key not configured. Please add your API key in Settings.',
+      );
+    }
 
-  /// Initialize Gemini model with user's API key
-  void _initializeGemini(String apiKey) {
     _geminiModel = GenerativeModel(
       model: 'gemini-pro',
       apiKey: apiKey,
@@ -136,15 +140,13 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
 
   @override
   Future<bool> isProviderAvailable(AIProvider provider) async {
-    // TODO: Check user's Firestore profile for API keys
-    // For now, return false as providers need to be configured by user
     switch (provider) {
       case AIProvider.gemini:
-        return _geminiModel != null;
+        return await apiKeyService.hasGeminiKey();
       case AIProvider.claude:
-        return false; // Will be true when user configures API key
+        return await apiKeyService.hasClaudeKey();
       case AIProvider.openai:
-        return false; // Will be true when user configures API key
+        return await apiKeyService.hasOpenAIKey();
     }
   }
 
@@ -153,11 +155,9 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
     String message,
     List<ChatMessage>? history,
   ) async {
+    // Initialize Gemini if not already initialized
     if (_geminiModel == null) {
-      throw const AIProviderException(
-        provider: 'gemini',
-        message: 'Gemini is not configured',
-      );
+      await _initializeGemini();
     }
 
     // Build chat history
@@ -185,11 +185,9 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
     String message,
     List<ChatMessage>? history,
   ) async* {
+    // Initialize Gemini if not already initialized
     if (_geminiModel == null) {
-      throw const AIProviderException(
-        provider: 'gemini',
-        message: 'Gemini is not configured',
-      );
+      await _initializeGemini();
     }
 
     // Build chat history
@@ -225,7 +223,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
     String message,
     List<ChatMessage>? history,
   ) async {
-    // TODO: Get API key from user's Firestore profile
+    // TODO: Get API key from user configuration
     throw const AIProviderException(
       provider: 'claude',
       message: 'Claude API key not configured. Please add your API key in settings.',
@@ -246,7 +244,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
     String message,
     List<ChatMessage>? history,
   ) async {
-    // TODO: Get API key from user's Firestore profile
+    // TODO: Get API key from user configuration
     throw const AIProviderException(
       provider: 'openai',
       message: 'OpenAI API key not configured. Please add your API key in settings.',

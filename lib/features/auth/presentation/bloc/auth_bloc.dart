@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/usecases/usecase.dart';
-import '../../../usage_tracking/domain/repositories/usage_repository.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/get_current_user.dart';
@@ -25,7 +24,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LinkAppleAccount linkAppleAccount;
   final UpdateUserProfile updateUserProfile;
   final AuthRepository authRepository;
-  final UsageRepository usageRepository;
 
   StreamSubscription<User?>? _authStateSubscription;
 
@@ -38,7 +36,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.linkAppleAccount,
     required this.updateUserProfile,
     required this.authRepository,
-    required this.usageRepository,
   }) : super(const AuthInitial()) {
     // Register event handlers
     on<AuthCheckRequested>(_onAuthCheckRequested);
@@ -100,18 +97,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await result.fold(
       (failure) async => emit(AuthError(message: failure.message)),
       (user) async {
-        // Check if user already has subscription, if not assign free tier
-        final subResult = await usageRepository.getUserSubscription(user.id);
-        await subResult.fold(
-          (failure) async {
-            // No subscription exists, assign free tier
-            await usageRepository.assignFreeTier(user.id);
-          },
-          (subscription) async {
-            // Subscription exists, do nothing
-          },
-        );
-
+        // Usage tracking disabled - skip subscription assignment
         emit(AuthAuthenticated(user));
       },
     );
@@ -129,18 +115,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await result.fold(
       (failure) async => emit(AuthError(message: failure.message)),
       (user) async {
-        // Check if user already has subscription, if not assign free tier
-        final subResult = await usageRepository.getUserSubscription(user.id);
-        await subResult.fold(
-          (failure) async {
-            // No subscription exists, assign free tier
-            await usageRepository.assignFreeTier(user.id);
-          },
-          (subscription) async {
-            // Subscription exists, do nothing
-          },
-        );
-
+        // Usage tracking disabled - skip subscription assignment
         emit(AuthAuthenticated(user));
       },
     );
@@ -180,19 +155,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await result.fold(
       (failure) async => emit(AuthError(message: failure.message)),
       (user) async {
-        // Assign free tier to new user
-        final tierResult = await usageRepository.assignFreeTier(user.id);
-
-        tierResult.fold(
-          (failure) {
-            // Log error but don't block signup
-            print('Failed to assign free tier: ${failure.message}');
-          },
-          (subscription) {
-            print('Free tier assigned to user: ${user.id}');
-          },
-        );
-
+        // Usage tracking disabled - skip tier assignment
         emit(
           AuthOperationSuccess(
             message: 'Account created! Please verify your email.',

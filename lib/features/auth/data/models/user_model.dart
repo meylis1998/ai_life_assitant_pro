@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../../domain/entities/user.dart';
 
@@ -35,29 +34,9 @@ class UserModel extends User {
       createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
       lastSignIn: firebaseUser.metadata.lastSignInTime ?? DateTime.now(),
       providers: providers,
-      preferences: {}, // Will be loaded from Firestore
-      biometricEnabled: false, // Will be loaded from secure storage
+      preferences: {},
+      biometricEnabled: false,
       phoneNumber: firebaseUser.phoneNumber,
-    );
-  }
-
-  /// Create UserModel from Firestore document
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
-    return UserModel(
-      id: doc.id,
-      email: data['email'] as String?,
-      displayName: data['displayName'] as String?,
-      photoUrl: data['photoUrl'] as String?,
-      emailVerified: data['emailVerified'] ?? false,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      lastSignIn:
-          (data['lastSignIn'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      providers: List<String>.from(data['providers'] ?? []),
-      preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),
-      biometricEnabled: data['biometricEnabled'] ?? false,
-      phoneNumber: data['phoneNumber'] as String?,
     );
   }
 
@@ -76,51 +55,6 @@ class UserModel extends User {
       biometricEnabled: json['biometricEnabled'] ?? false,
       phoneNumber: json['phoneNumber'] as String?,
     );
-  }
-
-  /// Merge Firebase Auth User with Firestore data
-  factory UserModel.merge({
-    required firebase_auth.User firebaseUser,
-    Map<String, dynamic>? firestoreData,
-  }) {
-    final baseModel = UserModel.fromFirebaseUser(firebaseUser);
-
-    if (firestoreData == null) {
-      return baseModel;
-    }
-
-    return UserModel(
-      id: baseModel.id,
-      email: baseModel.email,
-      displayName: firestoreData['displayName'] ?? baseModel.displayName,
-      photoUrl: firestoreData['photoUrl'] ?? baseModel.photoUrl,
-      emailVerified: baseModel.emailVerified,
-      createdAt: baseModel.createdAt,
-      lastSignIn: baseModel.lastSignIn,
-      providers: baseModel.providers,
-      preferences: Map<String, dynamic>.from(
-        firestoreData['preferences'] ?? {},
-      ),
-      biometricEnabled: firestoreData['biometricEnabled'] ?? false,
-      phoneNumber: baseModel.phoneNumber,
-    );
-  }
-
-  /// Convert to Firestore document format
-  Map<String, dynamic> toFirestore() {
-    return {
-      'email': email,
-      'displayName': displayName,
-      'photoUrl': photoUrl,
-      'emailVerified': emailVerified,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'lastSignIn': Timestamp.fromDate(lastSignIn),
-      'providers': providers,
-      'preferences': preferences,
-      'biometricEnabled': biometricEnabled,
-      'phoneNumber': phoneNumber,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
   }
 
   /// Convert to JSON format

@@ -1,12 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
-import '../../../usage_tracking/domain/entities/quota_status.dart';
-import '../../../usage_tracking/domain/repositories/usage_repository.dart';
-import '../../../usage_tracking/presentation/bloc/usage_bloc.dart';
-import '../../../usage_tracking/presentation/bloc/usage_event.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/entities/conversation.dart';
 import '../../domain/usecases/get_chat_history.dart';
@@ -15,26 +10,21 @@ import '../../domain/usecases/stream_response.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
 
-/// BLoC for managing chat functionality with usage tracking
+/// BLoC for managing chat functionality
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final SendMessage sendMessage;
   final StreamResponse streamResponse;
   final GetChatHistory getChatHistory;
-  final AuthRepository authRepository;
-  final UsageRepository usageRepository;
-  final UsageBloc? usageBloc;
+  final AuthRepository? authRepository;
 
   StreamSubscription? _streamSubscription;
   String _accumulatedContent = '';
-  QuotaStatus? _currentQuotaStatus;
 
   ChatBloc({
     required this.sendMessage,
     required this.streamResponse,
     required this.getChatHistory,
-    required this.authRepository,
-    required this.usageRepository,
-    this.usageBloc,
+    this.authRepository,
   }) : super(const ChatInitial()) {
     on<SendMessageEvent>(_onSendMessage);
     on<StreamMessageEvent>(_onStreamMessage);
@@ -52,29 +42,30 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   /// Initialize user context and quota status
   Future<void> _initializeUserContext() async {
+    if (authRepository == null) {
+      AppLogger.w('Auth repository not available - skipping user context initialization');
+      return;
+    }
+
     try {
-      final userResult = await authRepository.getCurrentUser();
+      final userResult = await authRepository!.getCurrentUser();
       userResult.fold(
         (failure) {
-          // User not authenticated - this should not happen with forced auth
-          AppLogger.e('No authenticated user found: ${failure.message}');
-          throw Exception('Authentication required');
+          // User not authenticated
+          AppLogger.w('No authenticated user found: ${failure.message}');
         },
         (user) {
           if (user == null) {
-            AppLogger.e('User is null despite successful result');
-            throw Exception('Authentication required');
+            AppLogger.w('User is null despite successful result');
+            return;
           }
 
-          // Initialize usage tracking
-          final userId = user.id;
-          usageBloc?.add(InitializeUsageTracking(userId: userId));
-          AppLogger.i('User context initialized for user: $userId');
+          AppLogger.i('User context initialized for user: ${user.id}');
         },
       );
     } catch (e) {
       AppLogger.e('Failed to initialize user context: $e');
-      rethrow;
+      // Don't rethrow - continue without user context
     }
   }
 
@@ -86,92 +77,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     try {
       AppLogger.i('Sending message: ${event.message}');
 
-      // Get current user - authentication is required
-      final userResult = await authRepository.getCurrentUser();
-      final user = userResult.fold((f) => null, (u) => u);
-
-      if (user == null) {
-        emit(
-          ChatError(
-            errorMessage:
-                'Authentication required. Please sign in to continue.',
-            conversation: state.conversation,
-            currentProvider: event.provider,
-          ),
-        );
-        return;
+      // Get current user - optional if auth is not available
+      String? userId;
+      if (authRepository != null) {
+        final userResult = await authRepository!.getCurrentUser();
+        final user = userResult.fold((f) => null, (u) => u);
+        userId = user?.id;
       }
 
-      final userId = user.id;
-
-      // Check quota before sending (mandatory for all users)
-      final quotaResult = await usageRepository.checkQuota(
-        userId: userId,
-        provider: event.provider.apiName,
-        estimatedTokens: _estimateTokens(event.message),
-      );
-
-      final canSend = quotaResult.fold((f) => false, (r) => r);
-
-      if (!canSend) {
-        // Get quota status for detailed error
-        final quotaStatusResult = await usageRepository.getQuotaStatus(userId);
-
-        return quotaStatusResult.fold(
-          (failure) {
-            emit(
-              ChatError(
-                errorMessage:
-                    'Quota exceeded. Please upgrade your plan to continue.',
-                conversation: state.conversation,
-                currentProvider: event.provider,
-              ),
-            );
-          },
-          (quotaStatus) {
-            _currentQuotaStatus = quotaStatus;
-            emit(
-              QuotaExceeded(
-                userTier: quotaStatus.tier,
-                quotaType: quotaStatus.exceededType ?? 'daily',
-                resetTime: quotaStatus.nextResetDate,
-                upgradeSuggestion: quotaStatus.tier == 'free'
-                    ? 'Upgrade to Pro for 10x more messages!'
-                    : quotaStatus.tier == 'pro'
-                    ? 'Upgrade to Premium for unlimited usage!'
-                    : null,
-                remainingMessages: quotaStatus.remainingMessages,
-                remainingTokens: quotaStatus.remainingTokens,
-                conversation: state.conversation,
-                currentProvider: event.provider,
-                quotaStatus: quotaStatus,
-              ),
-            );
-          },
-        );
-      }
-
-      // Check if approaching limit (80%+ usage)
-      final quotaStatusResult = await usageRepository.getQuotaStatus(userId);
-      quotaStatusResult.fold((f) => null, (quotaStatus) {
-        _currentQuotaStatus = quotaStatus;
-        if (quotaStatus.usagePercentage >= 80 && !quotaStatus.isExceeded) {
-          // Emit warning but continue with message
-          emit(
-            QuotaWarning(
-              usagePercentage: quotaStatus.usagePercentage,
-              remainingMessages: quotaStatus.remainingMessages,
-              remainingTokens: quotaStatus.remainingTokens,
-              warningMessage: 'You\'re approaching your daily limit',
-              conversation: state.conversation,
-              currentProvider: event.provider,
-              quotaStatus: quotaStatus,
-            ),
-          );
-        }
-      });
-
-      // Create user message with userId
+      // Create user message
       final userMessage = ChatMessage(
         content: event.message,
         role: MessageRole.user,
@@ -209,32 +123,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       result.fold(
         (failure) {
           AppLogger.e('Failed to send message: ${failure.message}');
-
-          // Check if it's a quota exceeded failure
-          if (failure is UserQuotaExceededFailure) {
-            emit(
-              QuotaExceeded(
-                userTier: failure.userTier,
-                quotaType: failure.quotaType,
-                resetTime: failure.resetTime,
-                upgradeSuggestion: failure.upgradeSuggestion,
-                remainingMessages: 0,
-                remainingTokens: 0,
-                conversation: updatedConversation,
-                currentProvider: event.provider,
-                quotaStatus: _currentQuotaStatus,
-              ),
-            );
-          } else {
-            emit(
-              ChatError(
-                errorMessage: failure.message,
-                failedMessage: userMessage,
-                conversation: updatedConversation,
-                currentProvider: event.provider,
-              ),
-            );
-          }
+          emit(
+            ChatError(
+              errorMessage: failure.message,
+              failedMessage: userMessage,
+              conversation: updatedConversation,
+              currentProvider: event.provider,
+            ),
+          );
         },
         (response) {
           AppLogger.i(
@@ -244,45 +140,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             response,
           );
 
-          // Log usage to UsageBloc if available
-          if (usageBloc != null && response.totalTokens != null) {
-            usageBloc!.add(
-              LogMessageUsage(
-                userId: userId,
-                messageId: response.id,
-                conversationId: currentConversation.id,
-                inputTokens: response.inputTokens ?? 0,
-                outputTokens: response.outputTokens ?? 0,
-                provider: event.provider.apiName,
-                responseTimeMs: response.responseTimeMs ?? 0,
-              ),
-            );
-          }
-
-          // Update usage stats
-          if (_currentQuotaStatus != null) {
-            final updatedStats = UsageUpdated(
-              messagesUsedToday:
-                  (_currentQuotaStatus!.messagesUsedToday ?? 0) + 1,
-              tokensUsedToday:
-                  (_currentQuotaStatus!.tokensUsedToday ?? 0) +
-                  (response.totalTokens ?? 0),
-              estimatedCost: response.getEstimatedCost(),
+          // Emit response received state
+          emit(
+            ResponseReceived(
+              response: response,
               conversation: conversationWithResponse,
               currentProvider: event.provider,
-              quotaStatus: _currentQuotaStatus,
-              userId: userId,
-            );
-            emit(updatedStats);
-          } else {
-            emit(
-              ResponseReceived(
-                response: response,
-                conversation: conversationWithResponse,
-                currentProvider: event.provider,
-              ),
-            );
-          }
+            ),
+          );
         },
       );
     } catch (e, stackTrace) {
@@ -496,69 +361,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       'Switching provider from ${state.currentProvider} to ${event.provider}',
     );
 
-    // Check if user has access to this provider
-    final userResult = await authRepository.getCurrentUser();
-    final user = userResult.fold((f) => null, (u) => u);
-
-    if (user != null) {
-      final subscriptionResult = await usageRepository.getUserSubscription(
-        user.id,
-      );
-
-      subscriptionResult.fold(
-        (failure) {
-          // Allow switch on error
-          emit(
-            ProviderSwitched(
-              previousProvider: state.currentProvider,
-              newProvider: event.provider,
-              conversation: state.conversation,
-            ),
-          );
-        },
-        (subscription) {
-          final canUse = subscription.canUseProvider(event.provider.apiName);
-
-          if (!canUse) {
-            emit(
-              ChatError(
-                errorMessage:
-                    'Upgrade to Pro to use ${event.provider.displayName}',
-                conversation: state.conversation,
-                currentProvider: state.currentProvider,
-              ),
-            );
-          } else {
-            emit(
-              ProviderSwitched(
-                previousProvider: state.currentProvider,
-                newProvider: event.provider,
-                conversation: state.conversation,
-              ),
-            );
-          }
-        },
-      );
-    } else {
-      // Guest users can only use Gemini
-      if (event.provider != AIProvider.gemini) {
-        emit(
-          ChatError(
-            errorMessage: 'Sign in to use ${event.provider.displayName}',
-            conversation: state.conversation,
-            currentProvider: state.currentProvider,
-          ),
-        );
-      } else {
-        emit(
-          ProviderSwitched(
-            previousProvider: state.currentProvider,
-            newProvider: event.provider,
-            conversation: state.conversation,
-          ),
-        );
-      }
-    }
+    // Allow switching to any provider (usage tracking disabled)
+    emit(
+      ProviderSwitched(
+        previousProvider: state.currentProvider,
+        newProvider: event.provider,
+        conversation: state.conversation,
+      ),
+    );
   }
 
   /// Handle deleting a message
@@ -619,12 +429,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
     }
-  }
-
-  /// Helper method to estimate tokens in a text
-  int _estimateTokens(String text) {
-    // Rough estimation: 1 token per 4 characters
-    return (text.length / 4).ceil();
   }
 
   @override

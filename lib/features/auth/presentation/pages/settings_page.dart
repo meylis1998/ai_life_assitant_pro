@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/services/api_key_service.dart';
+import '../../../../injection_container.dart' as di;
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -128,15 +130,42 @@ class SettingsPage extends StatelessWidget {
                 ],
               ),
 
-              // Subscription
+              // API Configuration
               _Section(
-                title: 'Subscription',
+                title: 'AI Provider API Keys',
                 children: [
                   _ListItem(
-                    icon: Icons.workspace_premium,
-                    title: 'Manage Subscription',
-                    subtitle: 'View and manage your plan',
-                    onTap: () => context.go('/subscription'),
+                    icon: Icons.psychology_outlined,
+                    title: 'Google Gemini API Key',
+                    subtitle: 'Configure your Gemini API key',
+                    trailing: const Icon(Icons.edit_outlined, size: 20),
+                    onTap: () => _showApiKeyDialog(
+                      context,
+                      'Gemini API Key',
+                      'gemini_api_key',
+                    ),
+                  ),
+                  _ListItem(
+                    icon: Icons.smart_toy_outlined,
+                    title: 'Claude API Key',
+                    subtitle: 'Configure your Claude API key',
+                    trailing: const Icon(Icons.edit_outlined, size: 20),
+                    onTap: () => _showApiKeyDialog(
+                      context,
+                      'Claude API Key',
+                      'claude_api_key',
+                    ),
+                  ),
+                  _ListItem(
+                    icon: Icons.auto_awesome_outlined,
+                    title: 'OpenAI API Key',
+                    subtitle: 'Configure your OpenAI API key',
+                    trailing: const Icon(Icons.edit_outlined, size: 20),
+                    onTap: () => _showApiKeyDialog(
+                      context,
+                      'OpenAI API Key',
+                      'openai_api_key',
+                    ),
                   ),
                 ],
               ),
@@ -181,6 +210,86 @@ class SettingsPage extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showApiKeyDialog(BuildContext context, String title, String keyName) {
+    final TextEditingController apiKeyController = TextEditingController();
+    bool isObscured = true;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter your API key below. It will be stored securely.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                    ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: apiKeyController,
+                obscureText: isObscured,
+                decoration: InputDecoration(
+                  labelText: 'API Key',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isObscured ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isObscured = !isObscured;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => dialogContext.pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final apiKey = apiKeyController.text.trim();
+                if (apiKey.isNotEmpty) {
+                  try {
+                    final apiKeyService = di.sl<ApiKeyService>();
+                    await apiKeyService.saveApiKey(keyName, apiKey);
+
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('API key saved successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    dialogContext.pop();
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to save API key: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
