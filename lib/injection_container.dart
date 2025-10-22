@@ -1,5 +1,4 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/network/api_client.dart';
 import 'core/network/network_info.dart';
 import 'core/services/api_key_service.dart';
+import 'core/services/gemini_model_manager.dart';
 import 'core/utils/logger.dart';
 import 'firebase_options.dart';
 
@@ -22,7 +22,7 @@ import 'features/ai_chat/data/repositories/ai_chat_repository_impl.dart';
 import 'features/ai_chat/domain/repositories/ai_chat_repository.dart';
 import 'features/ai_chat/domain/usecases/get_chat_history.dart';
 import 'features/ai_chat/domain/usecases/send_message.dart';
-import 'features/ai_chat/domain/usecases/stream_response.dart';
+import 'features/ai_chat/domain/usecases/stream_response.dart' as usecases;
 import 'features/ai_chat/presentation/bloc/chat_bloc.dart';
 
 // Auth Feature
@@ -53,18 +53,14 @@ Future<void> init() async {
 
   //! Core
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
-
-  sl.registerLazySingleton<ApiClient>(() => ApiClient());
-
-  sl.registerLazySingleton<ApiKeyService>(
-    () => ApiKeyService(secureStorage: sl()),
-  );
+  sl.registerLazySingleton(() => ApiClient());
+  sl.registerLazySingleton(() => ApiKeyService(secureStorage: sl()));
+  sl.registerLazySingleton(() => GeminiModelManager());
 
   //! External
   final sharedPreferences = await SharedPreferences.getInstance();
   sl.registerLazySingleton(() => sharedPreferences);
 
-  sl.registerLazySingleton(() => Dio());
   sl.registerLazySingleton(() => Connectivity());
 
   // Security
@@ -90,7 +86,7 @@ void _initAIChatFeature() {
 
   // Use cases
   sl.registerLazySingleton(() => SendMessage(sl()));
-  sl.registerLazySingleton(() => StreamResponse(sl()));
+  sl.registerLazySingleton(() => usecases.StreamResponse(sl()));
   sl.registerLazySingleton(() => GetChatHistory(sl()));
 
   // Repository
@@ -105,7 +101,11 @@ void _initAIChatFeature() {
 
   // Data sources
   sl.registerLazySingleton<AIChatRemoteDataSource>(
-    () => AIChatRemoteDataSourceImpl(apiClient: sl(), apiKeyService: sl()),
+    () => AIChatRemoteDataSourceImpl(
+      apiClient: sl(),
+      apiKeyService: sl(),
+      modelManager: sl(),
+    ),
   );
 
   sl.registerLazySingleton<AIChatLocalDataSource>(

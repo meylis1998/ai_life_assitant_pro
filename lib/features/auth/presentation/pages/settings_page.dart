@@ -228,7 +228,7 @@ class SettingsPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Enter your API key below. It will be stored securely.',
+                'Enter your API key below. It will be stored securely on your device.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
                     ),
