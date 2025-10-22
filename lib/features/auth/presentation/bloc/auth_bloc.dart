@@ -41,16 +41,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthCheckRequested>(_onAuthCheckRequested);
     on<AuthSignInWithGoogleRequested>(_onSignInWithGoogleRequested);
     on<AuthSignInWithAppleRequested>(_onSignInWithAppleRequested);
-    on<AuthSignInWithEmailRequested>(_onSignInWithEmailRequested);
-    on<AuthSignUpRequested>(_onSignUpRequested);
     on<AuthSignOutRequested>(_onSignOutRequested);
     on<AuthLinkGoogleRequested>(_onLinkGoogleRequested);
     on<AuthLinkAppleRequested>(_onLinkAppleRequested);
     on<AuthUnlinkProviderRequested>(_onUnlinkProviderRequested);
     on<AuthUpdateProfileRequested>(_onUpdateProfileRequested);
     on<AuthUpdatePreferencesRequested>(_onUpdatePreferencesRequested);
-    on<AuthPasswordResetRequested>(_onPasswordResetRequested);
-    on<AuthEmailVerificationRequested>(_onEmailVerificationRequested);
     on<AuthReloadRequested>(_onReloadRequested);
     on<AuthDeleteAccountRequested>(_onDeleteAccountRequested);
     on<AuthBiometricToggleRequested>(_onBiometricToggleRequested);
@@ -116,52 +112,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (failure) async => emit(AuthError(message: failure.message)),
       (user) async {
         // Usage tracking disabled - skip subscription assignment
-        emit(AuthAuthenticated(user));
-      },
-    );
-  }
-
-  /// Handle email sign-in request
-  Future<void> _onSignInWithEmailRequested(
-    AuthSignInWithEmailRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(const AuthOperationInProgress(operation: 'Signing in'));
-
-    final result = await authRepository.signInWithEmailAndPassword(
-      email: event.email,
-      password: event.password,
-    );
-
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(AuthAuthenticated(user)),
-    );
-  }
-
-  /// Handle sign-up request
-  Future<void> _onSignUpRequested(
-    AuthSignUpRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(const AuthOperationInProgress(operation: 'Creating account'));
-
-    final result = await authRepository.signUpWithEmailAndPassword(
-      email: event.email,
-      password: event.password,
-      displayName: event.displayName,
-    );
-
-    await result.fold(
-      (failure) async => emit(AuthError(message: failure.message)),
-      (user) async {
-        // Usage tracking disabled - skip tier assignment
-        emit(
-          AuthOperationSuccess(
-            message: 'Account created! Please verify your email.',
-            user: user,
-          ),
-        );
         emit(AuthAuthenticated(user));
       },
     );
@@ -326,42 +276,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthAuthenticated(updatedUser));
       }
     });
-  }
-
-  /// Handle password reset request
-  Future<void> _onPasswordResetRequested(
-    AuthPasswordResetRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(const AuthOperationInProgress(operation: 'Sending reset email'));
-
-    final result = await authRepository.sendPasswordResetEmail(event.email);
-
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(AuthPasswordResetSent(event.email)),
-    );
-  }
-
-  /// Handle email verification request
-  Future<void> _onEmailVerificationRequested(
-    AuthEmailVerificationRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    final currentUser = state.currentUser;
-    emit(
-      AuthOperationInProgress(
-        operation: 'Sending verification email',
-        currentUser: currentUser,
-      ),
-    );
-
-    final result = await authRepository.sendEmailVerification();
-
-    result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(AuthVerificationSent(currentUser?.email ?? '')),
-    );
   }
 
   /// Handle reload user request

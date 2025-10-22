@@ -25,19 +25,6 @@ abstract class FirebaseAuthDataSource {
   /// Sign in with Apple
   Future<UserModel> signInWithApple();
 
-  /// Sign in with email and password
-  Future<UserModel> signInWithEmailAndPassword({
-    required String email,
-    required String password,
-  });
-
-  /// Create new user with email and password
-  Future<UserModel> signUpWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String displayName,
-  });
-
   /// Sign out
   Future<void> signOut();
 
@@ -56,12 +43,6 @@ abstract class FirebaseAuthDataSource {
   /// Update user preferences
   Future<void> updatePreferences(Map<String, dynamic> preferences);
 
-  /// Send password reset email
-  Future<void> sendPasswordResetEmail(String email);
-
-  /// Send email verification
-  Future<void> sendEmailVerification();
-
   /// Reload user data
   Future<UserModel> reloadUser();
 
@@ -73,9 +54,6 @@ abstract class FirebaseAuthDataSource {
 
   /// Re-authenticate with Apple
   Future<void> reauthenticateWithApple();
-
-  /// Re-authenticate with password
-  Future<void> reauthenticateWithPassword(String password);
 
   /// Enable/disable biometric authentication
   Future<void> setBiometricEnabled(bool enabled);
@@ -224,56 +202,6 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   }
 
   @override
-  Future<UserModel> signInWithEmailAndPassword({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final userCredential = await firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (userCredential.user == null) {
-        throw const ServerException(message: 'Failed to sign in');
-      }
-
-      return UserModel.fromFirebaseUser(userCredential.user!);
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    }
-  }
-
-  @override
-  Future<UserModel> signUpWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String displayName,
-  }) async {
-    try {
-      final userCredential = await firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (userCredential.user == null) {
-        throw const ServerException(message: 'Failed to create account');
-      }
-
-      // Update display name
-      await userCredential.user!.updateDisplayName(displayName);
-      await userCredential.user!.reload();
-
-      // Send email verification
-      await userCredential.user!.sendEmailVerification();
-
-      return UserModel.fromFirebaseUser(firebaseAuth.currentUser!);
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    }
-  }
-
-  @override
   Future<void> signOut() async {
     try {
       await Future.wait([firebaseAuth.signOut(), googleSignIn.signOut()]);
@@ -415,29 +343,6 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   }
 
   @override
-  Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await firebaseAuth.sendPasswordResetEmail(email: email);
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    }
-  }
-
-  @override
-  Future<void> sendEmailVerification() async {
-    try {
-      final currentUser = firebaseAuth.currentUser;
-      if (currentUser == null) {
-        throw const UnauthorizedException(message: 'No authenticated user');
-      }
-
-      await currentUser.sendEmailVerification();
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    }
-  }
-
-  @override
   Future<UserModel> reloadUser() async {
     try {
       final currentUser = firebaseAuth.currentUser;
@@ -530,25 +435,6 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
           );
 
       await currentUser.reauthenticateWithCredential(oauthCredential);
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    }
-  }
-
-  @override
-  Future<void> reauthenticateWithPassword(String password) async {
-    try {
-      final currentUser = firebaseAuth.currentUser;
-      if (currentUser == null || currentUser.email == null) {
-        throw const UnauthorizedException(message: 'No authenticated user');
-      }
-
-      final credential = firebase_auth.EmailAuthProvider.credential(
-        email: currentUser.email!,
-        password: password,
-      );
-
-      await currentUser.reauthenticateWithCredential(credential);
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     }

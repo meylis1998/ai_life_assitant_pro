@@ -16,19 +16,6 @@ abstract class AuthRepository {
   /// Sign in with Apple
   Future<Either<Failure, User>> signInWithApple();
 
-  /// Sign in with email and password
-  Future<Either<Failure, User>> signInWithEmailAndPassword({
-    required String email,
-    required String password,
-  });
-
-  /// Create a new user account with email and password
-  Future<Either<Failure, User>> signUpWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String displayName,
-  });
-
   /// Sign out the current user
   Future<Either<Failure, void>> signOut();
 
@@ -52,12 +39,6 @@ abstract class AuthRepository {
     Map<String, dynamic> preferences,
   );
 
-  /// Send password reset email
-  Future<Either<Failure, void>> sendPasswordResetEmail(String email);
-
-  /// Send email verification
-  Future<Either<Failure, void>> sendEmailVerification();
-
   /// Reload user data from server
   Future<Either<Failure, User>> reloadUser();
 
@@ -67,7 +48,6 @@ abstract class AuthRepository {
   /// Re-authenticate user before sensitive operations
   Future<Either<Failure, void>> reauthenticateWithGoogle();
   Future<Either<Failure, void>> reauthenticateWithApple();
-  Future<Either<Failure, void>> reauthenticateWithPassword(String password);
 
   /// Enable/disable biometric authentication
   Future<Either<Failure, void>> setBiometricEnabled(bool enabled);

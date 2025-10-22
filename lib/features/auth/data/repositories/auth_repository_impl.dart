@@ -72,58 +72,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> signInWithEmailAndPassword({
-    required String email,
-    required String password,
-  }) async {
-    if (!await networkInfo.isConnected) {
-      return const Left(NetworkFailure(message: 'No internet connection'));
-    }
-
-    try {
-      final user = await remoteDataSource.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return Right(user);
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(message: e.message));
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(message: e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: 'Failed to sign in: $e'));
-    }
-  }
-
-  @override
-  Future<Either<Failure, User>> signUpWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String displayName,
-  }) async {
-    if (!await networkInfo.isConnected) {
-      return const Left(NetworkFailure(message: 'No internet connection'));
-    }
-
-    try {
-      final user = await remoteDataSource.signUpWithEmailAndPassword(
-        email: email,
-        password: password,
-        displayName: displayName,
-      );
-      return Right(user);
-    } on ValidationException catch (e) {
-      return Left(ValidationFailure(message: e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: 'Failed to create account: $e'));
-    }
-  }
-
-  @override
   Future<Either<Failure, void>> signOut() async {
     try {
       await remoteDataSource.signOut();
@@ -232,44 +180,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> sendPasswordResetEmail(String email) async {
-    if (!await networkInfo.isConnected) {
-      return const Left(NetworkFailure(message: 'No internet connection'));
-    }
-
-    try {
-      await remoteDataSource.sendPasswordResetEmail(email);
-      return const Right(null);
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(message: e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: 'Failed to send reset email: $e'));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> sendEmailVerification() async {
-    if (!await networkInfo.isConnected) {
-      return const Left(NetworkFailure(message: 'No internet connection'));
-    }
-
-    try {
-      await remoteDataSource.sendEmailVerification();
-      return const Right(null);
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(message: e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(
-        ServerFailure(message: 'Failed to send verification email: $e'),
-      );
-    }
-  }
-
-  @override
   Future<Either<Failure, User>> reloadUser() async {
     if (!await networkInfo.isConnected) {
       return const Left(NetworkFailure(message: 'No internet connection'));
@@ -331,26 +241,6 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       await remoteDataSource.reauthenticateWithApple();
-      return const Right(null);
-    } on UnauthorizedException catch (e) {
-      return Left(UnauthorizedFailure(message: e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
-    } catch (e) {
-      return Left(ServerFailure(message: 'Re-authentication failed: $e'));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> reauthenticateWithPassword(
-    String password,
-  ) async {
-    if (!await networkInfo.isConnected) {
-      return const Left(NetworkFailure(message: 'No internet connection'));
-    }
-
-    try {
-      await remoteDataSource.reauthenticateWithPassword(password);
       return const Right(null);
     } on UnauthorizedException catch (e) {
       return Left(UnauthorizedFailure(message: e.message));

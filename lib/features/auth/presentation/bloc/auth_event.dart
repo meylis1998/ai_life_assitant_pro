@@ -23,36 +23,6 @@ class AuthSignInWithAppleRequested extends AuthEvent {
   const AuthSignInWithAppleRequested();
 }
 
-/// Event to sign in with email and password
-class AuthSignInWithEmailRequested extends AuthEvent {
-  final String email;
-  final String password;
-
-  const AuthSignInWithEmailRequested({
-    required this.email,
-    required this.password,
-  });
-
-  @override
-  List<Object?> get props => [email, password];
-}
-
-/// Event to sign up with email and password
-class AuthSignUpRequested extends AuthEvent {
-  final String email;
-  final String password;
-  final String displayName;
-
-  const AuthSignUpRequested({
-    required this.email,
-    required this.password,
-    required this.displayName,
-  });
-
-  @override
-  List<Object?> get props => [email, password, displayName];
-}
-
 /// Event to sign out
 class AuthSignOutRequested extends AuthEvent {
   const AuthSignOutRequested();
@@ -97,21 +67,6 @@ class AuthUpdatePreferencesRequested extends AuthEvent {
 
   @override
   List<Object?> get props => [preferences];
-}
-
-/// Event to send password reset email
-class AuthPasswordResetRequested extends AuthEvent {
-  final String email;
-
-  const AuthPasswordResetRequested(this.email);
-
-  @override
-  List<Object?> get props => [email];
-}
-
-/// Event to send email verification
-class AuthEmailVerificationRequested extends AuthEvent {
-  const AuthEmailVerificationRequested();
 }
 
 /// Event to reload user data

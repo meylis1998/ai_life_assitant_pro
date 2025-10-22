@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/auth/presentation/pages/welcome_page.dart';
-import '../../features/auth/presentation/pages/auth_page.dart';
+import '../../features/auth/presentation/pages/sign_in_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/ai_chat/presentation/pages/chat_page.dart';
 import '../../injection_container.dart' as di;
@@ -61,7 +61,7 @@ class AppRouter {
         name: 'auth',
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const AuthPage(),
+          child: const SignInPage(),
         ),
       ),
 

@@ -1,50 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:sign_in_button/sign_in_button.dart';
 
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-import '../widgets/social_sign_in_button.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
-  late final AnimationController _animationController;
-  bool _showAppleSignIn = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    _checkAppleSignInAvailability();
-  }
-
-  Future<void> _checkAppleSignInAvailability() async {
-    if (Platform.isIOS) {
-      final isAvailable = await SignInWithApple.isAvailable();
-      setState(() {
-        _showAppleSignIn = isAvailable;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
+class SignInPage extends StatelessWidget {
+  const SignInPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +117,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
                     // Welcome Text
                     Text(
-                      'Welcome Back',
+                      'Welcome',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -162,7 +126,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     const SizedBox(height: 8),
 
                     Text(
-                      'Sign in to continue',
+                      'Sign in to get started',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
@@ -182,20 +146,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       state is AuthOperationInProgress &&
                                       state.operation.contains('Google');
 
-                                  return SocialSignInButton(
+                                  return SignInButton(
+                                    Buttons.google,
+                                    text: 'Continue with Google',
                                     onPressed: isLoading
-                                        ? null
+                                        ? () {} // Disabled during loading
                                         : () {
                                             context.read<AuthBloc>().add(
                                               const AuthSignInWithGoogleRequested(),
                                             );
                                           },
-                                    icon: 'assets/icons/google.png',
-                                    label: 'Continue with Google',
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: Colors.black87,
-                                    isLoading: isLoading,
-                                    borderColor: Colors.grey.shade300,
                                   );
                                 },
                               )
@@ -203,87 +163,31 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               .fadeIn(delay: 1000.ms, duration: 600.ms)
                               .slideX(begin: -0.2, end: 0),
 
-                          if (_showAppleSignIn) ...[
-                            const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                            // Apple Sign-In
-                            BlocBuilder<AuthBloc, AuthState>(
-                                  builder: (context, state) {
-                                    final isLoading =
-                                        state is AuthOperationInProgress &&
-                                        state.operation.contains('Apple');
+                          // Apple Sign-In
+                          BlocBuilder<AuthBloc, AuthState>(
+                                builder: (context, state) {
+                                  final isLoading =
+                                      state is AuthOperationInProgress &&
+                                      state.operation.contains('Apple');
 
-                                    return SocialSignInButton(
-                                      onPressed: isLoading
-                                          ? null
-                                          : () {
-                                              context.read<AuthBloc>().add(
-                                                const AuthSignInWithAppleRequested(),
-                                              );
-                                            },
-                                      icon: 'assets/icons/apple.png',
-                                      label: 'Continue with Apple',
-                                      backgroundColor: Colors.black,
-                                      foregroundColor: Colors.white,
-                                      isLoading: isLoading,
-                                    );
-                                  },
-                                )
-                                .animate()
-                                .fadeIn(delay: 1100.ms, duration: 600.ms)
-                                .slideX(begin: -0.2, end: 0),
-                          ],
-
-                          const SizedBox(height: 24),
-
-                          // Or divider
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.2),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                child: Text(
-                                  'or',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.5),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.2),
-                                ),
-                              ),
-                            ],
-                          ).animate().fadeIn(delay: 1200.ms, duration: 600.ms),
-
-                          const SizedBox(height: 24),
-
-                          // Guest Mode
-                          TextButton(
-                            onPressed: () {
-                              // Navigate to chat without authentication
-                              Navigator.of(
-                                context,
-                              ).pushReplacementNamed('/chat');
-                            },
-                            child: Text(
-                              'Continue as Guest',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ).animate().fadeIn(delay: 1300.ms, duration: 600.ms),
+                                  return SignInButton(
+                                    Buttons.apple,
+                                    text: 'Continue with Apple',
+                                    onPressed: isLoading
+                                        ? () {} // Disabled during loading
+                                        : () {
+                                            context.read<AuthBloc>().add(
+                                              const AuthSignInWithAppleRequested(),
+                                            );
+                                          },
+                                  );
+                                },
+                              )
+                              .animate()
+                              .fadeIn(delay: 1100.ms, duration: 600.ms)
+                              .slideX(begin: -0.2, end: 0),
                         ],
                       ),
                     ),
@@ -316,7 +220,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         ],
                       ),
                       textAlign: TextAlign.center,
-                    ).animate().fadeIn(delay: 1400.ms, duration: 600.ms),
+                    ).animate().fadeIn(delay: 1200.ms, duration: 600.ms),
                   ],
                 ),
               ),

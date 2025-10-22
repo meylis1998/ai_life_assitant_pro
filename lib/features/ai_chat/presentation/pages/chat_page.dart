@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_theme.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -277,14 +278,44 @@ class _ChatPageState extends State<ChatPage> {
             if (user == null) return const SizedBox.shrink();
 
             return PopupMenuButton<String>(
-              icon: CircleAvatar(
-                radius: 16,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                backgroundImage: user.photoUrl != null
-                    ? NetworkImage(user.photoUrl!)
-                    : null,
-                child: user.photoUrl == null
-                    ? Text(
+              icon: user.photoUrl != null
+                  ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: user.photoUrl!,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: Text(
+                            user.displayName?.substring(0, 1).toUpperCase() ??
+                            user.email?.substring(0, 1).toUpperCase() ??
+                            'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: Text(
                         user.displayName?.substring(0, 1).toUpperCase() ??
                         user.email?.substring(0, 1).toUpperCase() ??
                         'U',
@@ -292,9 +323,8 @@ class _ChatPageState extends State<ChatPage> {
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
-                      )
-                    : null,
-              ),
+                      ),
+                    ),
               tooltip: 'Account Menu',
               onSelected: (value) {
                 switch (value) {
