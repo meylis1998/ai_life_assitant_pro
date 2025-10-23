@@ -56,6 +56,16 @@
 	<string>This app needs camera access to take photos for your profile.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to select profile pictures.</string>
+	<!-- Calendar Permissions -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app needs access to your calendar to show upcoming events in your daily briefing.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>This app needs access to your reminders for your daily briefing.</string>
+	<!-- Location Permissions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs your location to provide accurate weather information in your daily briefing.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs your location to provide weather updates in your daily briefing.</string>
 	<!-- Google Sign-In Configuration -->
 	<key>CFBundleURLTypes</key>
 	<array>

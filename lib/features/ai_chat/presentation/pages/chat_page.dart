@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -37,7 +38,9 @@ class _ChatPageState extends State<ChatPage> {
     // Use addPostFrameCallback to ensure the context is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<ChatBloc>().add(const StartNewConversationEvent(title: 'New Chat'));
+        context.read<ChatBloc>().add(
+          const StartNewConversationEvent(title: 'New Chat'),
+        );
       }
     });
   }
@@ -83,133 +86,125 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: _buildAppBar(context),
-        body: Column(
-          children: [
-            // Provider selector
-            BlocBuilder<ChatBloc, ChatState>(
-              builder: (context, chatState) {
-                return AIProviderSelector(
-                  currentProvider: chatState.currentProvider,
-                  userTier: 'free',
-                  onProviderChanged: (provider) {
-                    context.read<ChatBloc>().add(
-                      SwitchProviderEvent(provider: provider),
-                    );
-                  },
-                ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.5);
-              },
-            ),
-
-            // Messages list
-            Expanded(
-              child: BlocConsumer<ChatBloc, ChatState>(
-                listener: (context, state) {
-                  if (state is MessageSent || state is ResponseReceived) {
-                    _scrollToBottom();
-                  }
-
-                  if (state is ChatError) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(state.errorMessage),
-                        backgroundColor: AppTheme.errorColor,
-                        action: SnackBarAction(
-                          label: 'Retry',
-                          textColor: Colors.white,
-                          onPressed: () {
-                            if (state.failedMessage != null) {
-                              context.read<ChatBloc>().add(
-                                RetryMessageEvent(
-                                  message: state.failedMessage!,
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    );
-                  }
-                },
-                builder: (context, state) {
-                  if (state is ChatLoading && state.conversation == null) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final messages = state.conversation?.messages ?? [];
-
-                  if (messages.isEmpty && !state.isStreaming) {
-                    return _buildEmptyState(context);
-                  }
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    itemCount: messages.length + (state.isStreaming ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index < messages.length) {
-                        final message = messages[index];
-                        return MessageBubble(
-                              message: message,
-                              onDelete: () {
-                                context.read<ChatBloc>().add(
-                                  DeleteMessageEvent(messageId: message.id),
-                                );
-                              },
-                            )
-                            .animate()
-                            .fadeIn(duration: 300.ms)
-                            .slideX(
-                              begin: message.role == MessageRole.user
-                                  ? 0.2
-                                  : -0.2,
-                            );
-                      } else {
-                        // Streaming indicator
-                        return Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                margin: const EdgeInsets.only(
-                                  bottom: 8,
-                                  right: 60,
-                                ),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const TypingIndicator(),
-                              ),
-                            )
-                            .animate()
-                            .fadeIn(duration: 300.ms)
-                            .slideX(begin: -0.2);
-                      }
-                    },
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: _buildAppBar(context),
+      body: Column(
+        children: [
+          // Provider selector
+          BlocBuilder<ChatBloc, ChatState>(
+            builder: (context, chatState) {
+              return AIProviderSelector(
+                currentProvider: chatState.currentProvider,
+                userTier: 'free',
+                onProviderChanged: (provider) {
+                  context.read<ChatBloc>().add(
+                    SwitchProviderEvent(provider: provider),
                   );
                 },
-              ),
-            ),
+              ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.5);
+            },
+          ),
 
-            // Input field
-            ChatInputField(
-              controller: _messageController,
-              onSend: _sendMessage,
-              isEnabled: true,
-            ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.5),
-          ],
-        ),
+          // Messages list
+          Expanded(
+            child: BlocConsumer<ChatBloc, ChatState>(
+              listener: (context, state) {
+                if (state is MessageSent || state is ResponseReceived) {
+                  _scrollToBottom();
+                }
+
+                if (state is ChatError) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.errorMessage),
+                      backgroundColor: AppTheme.errorColor,
+                      action: SnackBarAction(
+                        label: 'Retry',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          if (state.failedMessage != null) {
+                            context.read<ChatBloc>().add(
+                              RetryMessageEvent(message: state.failedMessage!),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                }
+              },
+              builder: (context, state) {
+                if (state is ChatLoading && state.conversation == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final messages = state.conversation?.messages ?? [];
+
+                if (messages.isEmpty && !state.isStreaming) {
+                  return _buildEmptyState(context);
+                }
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  itemCount: messages.length + (state.isStreaming ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index < messages.length) {
+                      final message = messages[index];
+                      return MessageBubble(
+                            message: message,
+                            onDelete: () {
+                              context.read<ChatBloc>().add(
+                                DeleteMessageEvent(messageId: message.id),
+                              );
+                            },
+                          )
+                          .animate()
+                          .fadeIn(duration: 300.ms)
+                          .slideX(
+                            begin: message.role == MessageRole.user
+                                ? 0.2
+                                : -0.2,
+                          );
+                    } else {
+                      // Streaming indicator
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8, right: 60),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const TypingIndicator(),
+                        ),
+                      ).animate().fadeIn(duration: 300.ms).slideX(begin: -0.2);
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Input field
+          ChatInputField(
+            controller: _messageController,
+            onSend: _sendMessage,
+            isEnabled: true,
+          ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.5),
+        ],
+      ),
     );
   }
 
@@ -287,23 +282,29 @@ class _ChatPageState extends State<ChatPage> {
                         fit: BoxFit.cover,
                         placeholder: (context, url) => CircleAvatar(
                           radius: 16,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           child: const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           ),
                         ),
                         errorWidget: (context, url, error) => CircleAvatar(
                           radius: 16,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           child: Text(
                             user.displayName?.substring(0, 1).toUpperCase() ??
-                            user.email?.substring(0, 1).toUpperCase() ??
-                            'U',
+                                user.email?.substring(0, 1).toUpperCase() ??
+                                'U',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -317,8 +318,8 @@ class _ChatPageState extends State<ChatPage> {
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
                         user.displayName?.substring(0, 1).toUpperCase() ??
-                        user.email?.substring(0, 1).toUpperCase() ??
-                        'U',
+                            user.email?.substring(0, 1).toUpperCase() ??
+                            'U',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -351,7 +352,9 @@ class _ChatPageState extends State<ChatPage> {
                       Text(
                         user.email ?? '',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withAlpha(153),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -402,7 +405,7 @@ class _ChatPageState extends State<ChatPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.chat_bubble_outline,
+            CupertinoIcons.chat_bubble,
             size: 80,
             color: Theme.of(context).disabledColor,
           ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),

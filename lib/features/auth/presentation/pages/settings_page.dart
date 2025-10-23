@@ -14,21 +14,13 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/chat'),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           final user = state.currentUser;
 
           if (user == null) {
-            return const Center(
-              child: Text('Not authenticated'),
-            );
+            return const Center(child: Text('Not authenticated'));
           }
 
           return ListView(
@@ -50,7 +42,11 @@ class SettingsPage extends StatelessWidget {
                     title: 'Email',
                     subtitle: user.email ?? 'No email',
                     trailing: user.emailVerified
-                        ? const Icon(Icons.verified, color: Colors.green, size: 20)
+                        ? const Icon(
+                            Icons.verified,
+                            color: Colors.green,
+                            size: 20,
+                          )
                         : const Text(
                             'Not verified',
                             style: TextStyle(color: Colors.orange),
@@ -76,7 +72,9 @@ class SettingsPage extends StatelessWidget {
                         ? const Icon(Icons.check_circle, color: Colors.green)
                         : TextButton(
                             onPressed: () {
-                              context.read<AuthBloc>().add(const AuthLinkGoogleRequested());
+                              context.read<AuthBloc>().add(
+                                const AuthLinkGoogleRequested(),
+                              );
                             },
                             child: const Text('Link'),
                           ),
@@ -88,7 +86,9 @@ class SettingsPage extends StatelessWidget {
                         ? const Icon(Icons.check_circle, color: Colors.green)
                         : TextButton(
                             onPressed: () {
-                              context.read<AuthBloc>().add(const AuthLinkAppleRequested());
+                              context.read<AuthBloc>().add(
+                                const AuthLinkAppleRequested(),
+                              );
                             },
                             child: const Text('Link'),
                           ),
@@ -114,8 +114,8 @@ class SettingsPage extends StatelessWidget {
                       value: user.biometricEnabled,
                       onChanged: (value) {
                         context.read<AuthBloc>().add(
-                              AuthBiometricToggleRequested(value),
-                            );
+                          AuthBiometricToggleRequested(value),
+                        );
                       },
                     ),
                   ),
@@ -201,8 +201,10 @@ class SettingsPage extends StatelessWidget {
                 child: Text(
                   'Account created: ${_formatDate(user.createdAt)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
-                      ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withAlpha(128),
+                  ),
                 ),
               ),
 
@@ -230,8 +232,8 @@ class SettingsPage extends StatelessWidget {
               Text(
                 'Enter your API key below. It will be stored securely on your device.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
-                    ),
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -335,9 +337,7 @@ class SettingsPage extends StatelessWidget {
               dialogContext.pop();
               context.read<AuthBloc>().add(const AuthDeleteAccountRequested());
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -354,10 +354,7 @@ class _Section extends StatelessWidget {
   final String title;
   final List<Widget> children;
 
-  const _Section({
-    required this.title,
-    required this.children,
-  });
+  const _Section({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -369,9 +366,9 @@ class _Section extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         ...children,
@@ -401,10 +398,7 @@ class _ListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon),
-      title: Text(
-        title,
-        style: TextStyle(color: titleColor),
-      ),
+      title: Text(title, style: TextStyle(color: titleColor)),
       subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: trailing,
       onTap: onTap,

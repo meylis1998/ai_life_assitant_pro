@@ -1,17 +1,25 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:device_calendar/device_calendar.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/network/api_client.dart';
 import 'core/network/network_info.dart';
 import 'core/services/api_key_service.dart';
+import 'core/services/gemini_http_service.dart';
 import 'core/services/gemini_model_manager.dart';
+import 'core/services/location_service.dart';
+import 'core/services/briefing_preferences_service.dart';
 import 'core/utils/logger.dart';
+import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
 
 // Import feature dependencies
@@ -38,6 +46,17 @@ import 'features/auth/domain/usecases/sign_out.dart';
 import 'features/auth/domain/usecases/update_user_profile.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
+// Daily Briefing Feature
+import 'features/daily_briefing/data/datasources/briefing_cache_datasource.dart';
+import 'features/daily_briefing/data/datasources/calendar_local_datasource.dart';
+import 'features/daily_briefing/data/datasources/news_api_datasource.dart';
+import 'features/daily_briefing/data/datasources/weather_api_datasource.dart';
+import 'features/daily_briefing/data/repositories/briefing_repository_impl.dart';
+import 'features/daily_briefing/domain/repositories/briefing_repository.dart';
+import 'features/daily_briefing/domain/usecases/generate_daily_briefing.dart';
+import 'features/daily_briefing/domain/usecases/get_cached_briefing.dart';
+import 'features/daily_briefing/presentation/bloc/briefing_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -51,9 +70,18 @@ Future<void> init() async {
 
   _initAIChatFeature();
 
+  _initDailyBriefingFeature();
+
   //! Core
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
   sl.registerLazySingleton(() => ApiClient());
+  sl.registerLazySingleton(() => LocationService());
+  sl.registerLazySingleton(() => BriefingPreferencesService(sl()));
+
+  // Notification service
+  final notificationsPlugin = FlutterLocalNotificationsPlugin();
+  sl.registerLazySingleton(() => notificationsPlugin);
+  sl.registerLazySingleton(() => NotificationService(sl()));
   sl.registerLazySingleton(() => ApiKeyService(secureStorage: sl()));
   sl.registerLazySingleton(() => GeminiModelManager());
 
@@ -111,6 +139,62 @@ void _initAIChatFeature() {
   sl.registerLazySingleton<AIChatLocalDataSource>(
     () => AIChatLocalDataSourceImpl(sharedPreferences: sl()),
   );
+}
+
+// Feature-specific initialization for Daily Briefing
+void _initDailyBriefingFeature() {
+  // Bloc - Singleton to maintain briefing state
+  sl.registerLazySingleton(
+    () => BriefingBloc(generateDailyBriefing: sl(), getCachedBriefing: sl()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GenerateDailyBriefing(sl()));
+  sl.registerLazySingleton(() => GetCachedBriefing(sl()));
+
+  // Repository
+  sl.registerLazySingleton<BriefingRepository>(
+    () => BriefingRepositoryImpl(
+      weatherDataSource: sl(),
+      newsDataSource: sl(),
+      calendarDataSource: sl(),
+      cacheDataSource: sl(),
+      networkInfo: sl(),
+      geminiService: sl(),
+    ),
+  );
+
+  // Data sources
+  sl.registerLazySingleton<WeatherApiDataSource>(
+    () => WeatherApiDataSourceImpl(client: sl()),
+  );
+
+  sl.registerLazySingleton<NewsApiDataSource>(
+    () => NewsApiDataSourceImpl(client: sl()),
+  );
+
+  sl.registerLazySingleton<CalendarLocalDataSource>(
+    () => CalendarLocalDataSourceImpl(deviceCalendarPlugin: sl()),
+  );
+
+  sl.registerLazySingleton<BriefingCacheDataSource>(
+    () => BriefingCacheDataSourceImpl(),
+  );
+
+  // External dependencies
+  sl.registerLazySingleton(() => http.Client());
+  sl.registerLazySingleton(() => DeviceCalendarPlugin());
+
+  // Gemini HTTP Service for briefing insights (supports current models)
+  // Using HTTP REST API to access gemini-2.5-flash and newer models
+  sl.registerLazySingleton<GeminiHttpService>(
+    () => GeminiHttpService(
+      apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
+      client: sl(),
+    ),
+  );
+
+  AppLogger.i('✅ Daily Briefing feature initialized');
 }
 
 // Initialize Firebase

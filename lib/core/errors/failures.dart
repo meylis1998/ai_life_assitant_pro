@@ -127,3 +127,36 @@ class TokenLimitExceededFailure extends Failure {
     provider,
   ];
 }
+
+/// Failure for weather API errors
+class WeatherFailure extends Failure {
+  const WeatherFailure({super.message = 'Weather data unavailable', super.code});
+}
+
+/// Failure for news API errors
+class NewsFailure extends Failure {
+  const NewsFailure({super.message = 'News data unavailable', super.code});
+}
+
+/// Failure for calendar access errors
+class CalendarFailure extends Failure {
+  const CalendarFailure({super.message = 'Calendar access failed', super.code});
+}
+
+/// Failure for location permission errors
+class LocationFailure extends Failure {
+  const LocationFailure({super.message = 'Location permission denied', super.code});
+}
+
+/// Failure for permission errors
+class PermissionFailure extends Failure {
+  final String permissionType;
+
+  const PermissionFailure({
+    required super.message,
+    required this.permissionType,
+  });
+
+  @override
+  List<Object?> get props => [message, permissionType];
+}

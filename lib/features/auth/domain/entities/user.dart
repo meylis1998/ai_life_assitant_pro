@@ -9,7 +9,7 @@ class User extends Equatable {
   final bool emailVerified;
   final DateTime createdAt;
   final DateTime lastSignIn;
-  final List<String> providers; // List of auth providers (google, apple, etc.)
+  final List<String> providers;
   final Map<String, dynamic> preferences;
   final bool biometricEnabled;
   final String? phoneNumber;

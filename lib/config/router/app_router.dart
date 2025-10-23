@@ -8,10 +8,21 @@ import '../../features/auth/presentation/pages/welcome_page.dart';
 import '../../features/auth/presentation/pages/sign_in_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/ai_chat/presentation/pages/chat_page.dart';
+import '../../features/daily_briefing/presentation/pages/briefing_page.dart';
 import '../../injection_container.dart' as di;
+import 'scaffold_with_nav_bar.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final _shellNavigatorBriefingKey = GlobalKey<NavigatorState>(
+    debugLabel: 'shellBriefing',
+  );
+  static final _shellNavigatorChatKey = GlobalKey<NavigatorState>(
+    debugLabel: 'shellChat',
+  );
+  static final _shellNavigatorSettingsKey = GlobalKey<NavigatorState>(
+    debugLabel: 'shellSettings',
+  );
 
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -19,9 +30,7 @@ class AppRouter {
     initialLocation: '/welcome',
 
     // Listen to auth state changes and refresh routes
-    refreshListenable: GoRouterRefreshStream(
-      di.sl<AuthBloc>().stream,
-    ),
+    refreshListenable: GoRouterRefreshStream(di.sl<AuthBloc>().stream),
 
     redirect: (BuildContext context, GoRouterState state) {
       final authState = di.sl<AuthBloc>().state;
@@ -35,9 +44,9 @@ class AppRouter {
         return '/welcome';
       }
 
-      // If authenticated and on auth/welcome pages, go to chat
+      // If authenticated and on auth/welcome pages, go to briefing
       if (isAuthenticated && (isGoingToAuth || isGoingToWelcome)) {
-        return '/chat';
+        return '/briefing';
       }
 
       // No redirect needed
@@ -49,48 +58,68 @@ class AppRouter {
       GoRoute(
         path: '/welcome',
         name: 'welcome',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const WelcomePage(),
-        ),
+        pageBuilder: (context, state) =>
+            MaterialPage(key: state.pageKey, child: const WelcomePage()),
       ),
 
       // Authentication Route
       GoRoute(
         path: '/auth',
         name: 'auth',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const SignInPage(),
-        ),
+        pageBuilder: (context, state) =>
+            MaterialPage(key: state.pageKey, child: const SignInPage()),
       ),
 
-      // Chat Route (Protected)
-      GoRoute(
-        path: '/chat',
-        name: 'chat',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: ChatPage(),
-        ),
-      ),
+      // Main app with bottom navigation (Protected)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return ScaffoldWithNavBar(navigationShell: navigationShell);
+        },
+        branches: [
+          // Briefing branch
+          StatefulShellBranch(
+            navigatorKey: _shellNavigatorBriefingKey,
+            routes: [
+              GoRoute(
+                path: '/briefing',
+                name: 'briefing',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: BriefingPage()),
+              ),
+            ],
+          ),
 
-      // Settings Route (Protected)
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const SettingsPage(),
-        ),
+          // Chat branch
+          StatefulShellBranch(
+            navigatorKey: _shellNavigatorChatKey,
+            routes: [
+              GoRoute(
+                path: '/chat',
+                name: 'chat',
+                pageBuilder: (context, state) =>
+                    NoTransitionPage(child: ChatPage()),
+              ),
+            ],
+          ),
+
+          // Settings branch
+          StatefulShellBranch(
+            navigatorKey: _shellNavigatorSettingsKey,
+            routes: [
+              GoRoute(
+                path: '/settings',
+                name: 'settings',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: SettingsPage()),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
 
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
-        child: Text('Page not found: ${state.uri}'),
-      ),
-    ),
+    errorBuilder: (context, state) =>
+        Scaffold(body: Center(child: Text('Page not found: ${state.uri}'))),
   );
 }
 
@@ -98,9 +127,7 @@ class AppRouter {
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-      (_) => notifyListeners(),
-    );
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
   }
 
   late final StreamSubscription<dynamic> _subscription;

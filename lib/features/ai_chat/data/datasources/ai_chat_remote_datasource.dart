@@ -190,7 +190,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
           'model_generation': modelConfig.generation,
         },
       );
-    } on GenerativeAIException catch (e) {
+    } catch (e) {
       AppLogger.e('${modelConfig.modelName} error', error: e);
 
       // Check if should fallback
@@ -217,7 +217,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
       // No more fallbacks or non-fallback error
       throw AIProviderException(
         provider: 'gemini',
-        message: e.message,
+        message: e.toString(),
       );
     }
   }
@@ -301,7 +301,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
         modelManager.markModelSuccess(modelConfig.modelName);
         AppLogger.i('✅ Stream completed with ${modelConfig.modelName}');
       }
-    } on GenerativeAIException catch (e) {
+    } catch (e) {
       AppLogger.e('${modelConfig.modelName} stream error', error: e);
 
       // Check if should fallback
@@ -324,15 +324,15 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
         // No more fallbacks or non-fallback error
         throw AIProviderException(
           provider: 'gemini',
-          message: e.message,
+          message: e.toString(),
         );
       }
     }
   }
 
   /// Check if error warrants fallback to next model
-  bool _shouldFallback(GenerativeAIException error) {
-    final message = error.message.toLowerCase();
+  bool _shouldFallback(dynamic error) {
+    final message = error.toString().toLowerCase();
     return message.contains('rate limit') ||
         message.contains('quota') ||
         message.contains('not found') ||

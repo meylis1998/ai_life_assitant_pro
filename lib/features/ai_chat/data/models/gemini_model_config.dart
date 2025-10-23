@@ -97,50 +97,50 @@ class GeminiModelConfig extends Equatable {
 class GeminiModels {
   GeminiModels._();
 
-  /// Primary model: Gemini 2.5 Pro - Most powerful, best quality
+  /// Primary model: Gemini 1.5 Flash - Best price-performance balance
   static const primary = GeminiModelConfig(
-    modelName: 'gemini-2.5-pro',
+    modelName: 'gemini-1.5-flash',
     priority: 1,
-    description: 'Most advanced model for complex reasoning',
-    generation: '2.5',
-    contextWindow: 1048576,
-    maxOutputTokens: 65536,
-    estimatedCostPer1kTokens: 0.0005,
-    supportsThinking: true,
-  );
-
-  /// Secondary model: Gemini 2.5 Flash - Best price-performance balance
-  static const secondary = GeminiModelConfig(
-    modelName: 'gemini-2.5-flash',
-    priority: 2,
     description: 'Best price-performance for large-scale processing',
-    generation: '2.5',
+    generation: '1.5',
     contextWindow: 1048576,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 8192,
     estimatedCostPer1kTokens: 0.0001,
-    supportsThinking: true,
+    supportsThinking: false,
   );
 
-  /// Tertiary model: Gemini 2.5 Flash-Lite - Faster and more cost-efficient
+  /// Secondary model: Gemini 1.5 Pro - Most powerful
+  static const secondary = GeminiModelConfig(
+    modelName: 'gemini-1.5-pro',
+    priority: 2,
+    description: 'Most advanced model for complex reasoning',
+    generation: '1.5',
+    contextWindow: 2097152,
+    maxOutputTokens: 8192,
+    estimatedCostPer1kTokens: 0.0005,
+    supportsThinking: false,
+  );
+
+  /// Tertiary model: Gemini 1.5 Flash (8B) - Faster and more cost-efficient
   static const tertiary = GeminiModelConfig(
-    modelName: 'gemini-2.5-flash-lite',
+    modelName: 'gemini-1.5-flash-8b',
     priority: 3,
     description: 'Fast, low-cost, high-performance model',
-    generation: '2.5',
+    generation: '1.5',
     contextWindow: 1048576,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 8192,
     estimatedCostPer1kTokens: 0.00005,
     supportsThinking: false,
   );
 
-  /// Final fallback: Gemini 2.0 Flash - Stable previous generation
+  /// Final fallback: Gemini Pro (legacy)
   static const finalFallback = GeminiModelConfig(
-    modelName: 'gemini-2.0-flash',
+    modelName: 'gemini-pro',
     priority: 4,
-    description: 'Second generation workhorse model',
-    generation: '2.0',
-    contextWindow: 1048576,
-    maxOutputTokens: 8192, // Lower output limit
+    description: 'Legacy stable model',
+    generation: '1.0',
+    contextWindow: 32768,
+    maxOutputTokens: 2048,
     estimatedCostPer1kTokens: 0.0001,
     supportsThinking: false,
   );

@@ -21,6 +21,14 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+
+    // Override Kotlin version for all subprojects to match Flutter's version
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0")
+            force("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {
