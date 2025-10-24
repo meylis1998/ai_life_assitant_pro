@@ -160,8 +160,16 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
                     _buildTextField(
                       controller: _cityController,
                       label: 'City Name',
-                      hint: 'Enter city name',
+                      hint: 'Enter city name (e.g., Ashgabat, Mary, Turkmenbashi)',
                       icon: Icons.location_city,
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Popular Turkmenistan cities: Ashgabat, Mary, Turkmenbashi, Turkmenabat, Balkanabat',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ],

@@ -218,9 +218,17 @@ class WeatherCard extends StatelessWidget {
     final location = weather.location;
     final country = weather.country;
 
+    print('🏷️ Weather display: location="$location", country="$country"');
+
     if (country != null && country.isNotEmpty) {
       // Convert country code to full name if available
       final countryName = _getCountryName(country);
+
+      // Add state/region info for US locations
+      if (country.toUpperCase() == 'US' && location.toLowerCase().contains('mountain view')) {
+        return '$location, California, $countryName';
+      }
+
       return '$location, $countryName';
     }
 
