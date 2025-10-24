@@ -39,7 +39,6 @@ class AppRouter {
       final isGoingToAuth = state.matchedLocation == '/auth';
       final isGoingToWelcome = state.matchedLocation == '/welcome';
 
-      // If not authenticated and trying to access protected routes, go to welcome
       if (!isAuthenticated && !isGoingToAuth && !isGoingToWelcome) {
         return '/welcome';
       }

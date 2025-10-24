@@ -1,48 +1,59 @@
 import 'package:dartz/dartz.dart';
-
 import '../../../../core/errors/failures.dart';
-import '../entities/calendar_event.dart';
 import '../entities/daily_briefing.dart';
-import '../entities/news_article.dart';
-import '../entities/weather.dart';
 
+/// Briefing preferences
+class BriefingPreferences {
+  final String? preferredCity;
+  final double? latitude;
+  final double? longitude;
+  final String? country; // For news
+  final List<String>? newsCategories;
+  final String? userName;
+  final List<String>? interests;
+
+  const BriefingPreferences({
+    this.preferredCity,
+    this.latitude,
+    this.longitude,
+    this.country,
+    this.newsCategories,
+    this.userName,
+    this.interests,
+  });
+}
+
+/// Abstract repository interface for daily briefing orchestration
 abstract class BriefingRepository {
-  /// Get current weather data for the given location
-  Future<Either<Failure, Weather>> getWeather({
-    String? cityName,
-    double? latitude,
-    double? longitude,
+  /// Generate a complete daily briefing
+  ///
+  /// This method orchestrates all data sources (weather, news, calendar, AI)
+  /// and combines them into a single briefing.
+  ///
+  /// Parameters:
+  /// - [preferences]: User preferences for the briefing
+  /// - [forceRefresh]: If true, bypass cache and fetch fresh data
+  ///
+  /// Returns:
+  /// - Right(DailyBriefing) on success
+  /// - Left(Failure) on error
+  Future<Either<Failure, DailyBriefing>> generateBriefing({
+    required BriefingPreferences preferences,
+    bool forceRefresh = false,
   });
 
-  /// Get top news headlines
-  Future<Either<Failure, List<NewsArticle>>> getTopNews({
-    String? category,
-    String? country,
-    int limit = 10,
-  });
-
-  /// Get today's calendar events
-  Future<Either<Failure, List<CalendarEvent>>> getTodayEvents();
-
-  /// Generate AI-powered insights based on briefing data
-  Future<Either<Failure, AIInsights>> generateAIInsights({
-    required Weather weather,
-    required List<NewsArticle> news,
-    required List<CalendarEvent> events,
-    String? userName,
-  });
-
-  /// Generate complete daily briefing
-  Future<Either<Failure, DailyBriefing>> generateDailyBriefing({
-    String? userName,
-    String? cityName,
-    double? latitude,
-    double? longitude,
-  });
-
-  /// Get cached briefing
+  /// Get cached briefing (for offline mode)
+  ///
+  /// Returns:
+  /// - Right(DailyBriefing) if cached briefing exists
+  /// - Left(CacheFailure) if no cached data
   Future<Either<Failure, DailyBriefing>> getCachedBriefing();
 
-  /// Cache briefing for offline access
-  Future<Either<Failure, void>> cacheBriefing(DailyBriefing briefing);
+  /// Save briefing preferences
+  Future<Either<Failure, void>> savePreferences(
+    BriefingPreferences preferences,
+  );
+
+  /// Get saved preferences
+  Future<Either<Failure, BriefingPreferences>> getPreferences();
 }

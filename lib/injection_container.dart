@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_calendar/device_calendar.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
@@ -47,14 +48,26 @@ import 'features/auth/domain/usecases/update_user_profile.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 // Daily Briefing Feature
-import 'features/daily_briefing/data/datasources/briefing_cache_datasource.dart';
-import 'features/daily_briefing/data/datasources/calendar_local_datasource.dart';
-import 'features/daily_briefing/data/datasources/news_api_datasource.dart';
 import 'features/daily_briefing/data/datasources/weather_api_datasource.dart';
+import 'features/daily_briefing/data/datasources/news_api_datasource.dart';
+import 'features/daily_briefing/data/datasources/calendar_local_datasource.dart';
+import 'features/daily_briefing/data/datasources/ai_insights_datasource.dart';
+import 'features/daily_briefing/data/datasources/briefing_local_datasource.dart';
+import 'features/daily_briefing/data/repositories/weather_repository_impl.dart';
+import 'features/daily_briefing/data/repositories/news_repository_impl.dart';
+import 'features/daily_briefing/data/repositories/calendar_repository_impl.dart';
+import 'features/daily_briefing/data/repositories/ai_insights_repository_impl.dart';
 import 'features/daily_briefing/data/repositories/briefing_repository_impl.dart';
+import 'features/daily_briefing/domain/repositories/weather_repository.dart';
+import 'features/daily_briefing/domain/repositories/news_repository.dart';
+import 'features/daily_briefing/domain/repositories/calendar_repository.dart';
+import 'features/daily_briefing/domain/repositories/ai_insights_repository.dart';
 import 'features/daily_briefing/domain/repositories/briefing_repository.dart';
-import 'features/daily_briefing/domain/usecases/generate_daily_briefing.dart';
-import 'features/daily_briefing/domain/usecases/get_cached_briefing.dart';
+import 'features/daily_briefing/domain/usecases/get_weather_usecase.dart';
+import 'features/daily_briefing/domain/usecases/get_news_usecase.dart';
+import 'features/daily_briefing/domain/usecases/get_calendar_events_usecase.dart';
+import 'features/daily_briefing/domain/usecases/generate_ai_insights_usecase.dart';
+import 'features/daily_briefing/domain/usecases/generate_daily_briefing_usecase.dart';
 import 'features/daily_briefing/presentation/bloc/briefing_bloc.dart';
 
 final sl = GetIt.instance;
@@ -143,56 +156,101 @@ void _initAIChatFeature() {
 
 // Feature-specific initialization for Daily Briefing
 void _initDailyBriefingFeature() {
-  // Bloc - Singleton to maintain briefing state
-  sl.registerLazySingleton(
-    () => BriefingBloc(generateDailyBriefing: sl(), getCachedBriefing: sl()),
-  );
-
-  // Use cases
-  sl.registerLazySingleton(() => GenerateDailyBriefing(sl()));
-  sl.registerLazySingleton(() => GetCachedBriefing(sl()));
-
-  // Repository
-  sl.registerLazySingleton<BriefingRepository>(
-    () => BriefingRepositoryImpl(
-      weatherDataSource: sl(),
-      newsDataSource: sl(),
-      calendarDataSource: sl(),
-      cacheDataSource: sl(),
-      networkInfo: sl(),
-      geminiService: sl(),
-    ),
-  );
-
-  // Data sources
+  // Daily Briefing Data Sources
   sl.registerLazySingleton<WeatherApiDataSource>(
-    () => WeatherApiDataSourceImpl(client: sl()),
+    () => WeatherApiDataSourceImpl(dio: sl()),
   );
 
   sl.registerLazySingleton<NewsApiDataSource>(
-    () => NewsApiDataSourceImpl(client: sl()),
+    () => NewsApiDataSourceImpl(dio: sl()),
   );
 
   sl.registerLazySingleton<CalendarLocalDataSource>(
-    () => CalendarLocalDataSourceImpl(deviceCalendarPlugin: sl()),
+    () => CalendarLocalDataSourceImpl(),
   );
 
-  sl.registerLazySingleton<BriefingCacheDataSource>(
-    () => BriefingCacheDataSourceImpl(),
+  sl.registerLazySingleton<AIInsightsDataSource>(
+    () => AIInsightsDataSourceImpl(),
   );
 
-  // External dependencies
-  sl.registerLazySingleton(() => http.Client());
-  sl.registerLazySingleton(() => DeviceCalendarPlugin());
-
-  // Gemini HTTP Service for briefing insights (supports current models)
-  // Using HTTP REST API to access gemini-2.5-flash and newer models
-  sl.registerLazySingleton<GeminiHttpService>(
-    () => GeminiHttpService(
-      apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
-      client: sl(),
+  sl.registerLazySingleton<BriefingLocalDataSource>(
+    () => BriefingLocalDataSourceImpl(
+      sharedPreferences: sl<SharedPreferences>(),
     ),
   );
+
+  // Daily Briefing Repositories
+  sl.registerLazySingleton<WeatherRepository>(
+    () => WeatherRepositoryImpl(
+      remoteDataSource: sl<WeatherApiDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+
+  sl.registerLazySingleton<NewsRepository>(
+    () => NewsRepositoryImpl(
+      remoteDataSource: sl<NewsApiDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+
+  sl.registerLazySingleton<CalendarRepository>(
+    () => CalendarRepositoryImpl(
+      localDataSource: sl<CalendarLocalDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton<AIInsightsRepository>(
+    () => AIInsightsRepositoryImpl(
+      remoteDataSource: sl<AIInsightsDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton<BriefingRepository>(
+    () => BriefingRepositoryImpl(
+      weatherRepository: sl<WeatherRepository>(),
+      newsRepository: sl<NewsRepository>(),
+      calendarRepository: sl<CalendarRepository>(),
+      aiInsightsRepository: sl<AIInsightsRepository>(),
+      localDataSource: sl<BriefingLocalDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+      locationService: sl<LocationService>(),
+    ),
+  );
+
+  // Daily Briefing Use Cases
+  sl.registerLazySingleton<GetWeatherUseCase>(
+    () => GetWeatherUseCase(sl<WeatherRepository>()),
+  );
+
+  sl.registerLazySingleton<GetNewsUseCase>(
+    () => GetNewsUseCase(sl<NewsRepository>()),
+  );
+
+  sl.registerLazySingleton<GetCalendarEventsUseCase>(
+    () => GetCalendarEventsUseCase(sl<CalendarRepository>()),
+  );
+
+  sl.registerLazySingleton<GenerateAIInsightsUseCase>(
+    () => GenerateAIInsightsUseCase(sl<AIInsightsRepository>()),
+  );
+
+  sl.registerLazySingleton<GenerateDailyBriefingUseCase>(
+    () => GenerateDailyBriefingUseCase(sl<BriefingRepository>()),
+  );
+
+  // Daily Briefing BLoC
+  sl.registerFactory<BriefingBloc>(
+    () => BriefingBloc(
+      generateDailyBriefingUseCase: sl<GenerateDailyBriefingUseCase>(),
+      briefingRepository: sl<BriefingRepository>(),
+    ),
+  );
+
+  // Register Dio for HTTP requests
+  if (!sl.isRegistered<Dio>()) {
+    sl.registerLazySingleton(() => Dio());
+  }
 
   AppLogger.i('✅ Daily Briefing feature initialized');
 }

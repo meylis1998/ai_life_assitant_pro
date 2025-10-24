@@ -3,104 +3,35 @@
 part of 'daily_briefing_model.dart';
 
 // **************************************************************************
-// TypeAdapterGenerator
+// JsonSerializableGenerator
 // **************************************************************************
 
-class DailyBriefingModelAdapter extends TypeAdapter<DailyBriefingModel> {
-  @override
-  final int typeId = 10;
-
-  @override
-  DailyBriefingModel read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return DailyBriefingModel(
-      hiveId: fields[0] as String,
-      hiveGeneratedAt: fields[1] as DateTime,
-      hiveGreeting: fields[2] as String,
-      hiveWeather: (fields[3] as Map).cast<String, dynamic>(),
-      hiveTopNews: (fields[4] as List)
-          .map((dynamic e) => (e as Map).cast<String, dynamic>())
+DailyBriefingModel _$DailyBriefingModelFromJson(Map<String, dynamic> json) =>
+    DailyBriefingModel(
+      id: json['id'] as String,
+      generatedAt: DateTime.parse(json['generatedAt'] as String),
+      weather: json['weather'] == null
+          ? null
+          : WeatherModel.fromJson(json['weather'] as Map<String, dynamic>),
+      topNews: (json['topNews'] as List<dynamic>)
+          .map((e) => NewsArticleModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      hiveTodayEvents: (fields[5] as List)
-          .map((dynamic e) => (e as Map).cast<String, dynamic>())
+      todayEvents: (json['todayEvents'] as List<dynamic>)
+          .map((e) => CalendarEventModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      hiveInsights: (fields[6] as Map).cast<String, dynamic>(),
+      insights: json['insights'] == null
+          ? null
+          : AIInsightsModel.fromJson(json['insights'] as Map<String, dynamic>),
+      errorMessage: json['errorMessage'] as String? ?? '',
     );
-  }
 
-  @override
-  void write(BinaryWriter writer, DailyBriefingModel obj) {
-    writer
-      ..writeByte(7)
-      ..writeByte(0)
-      ..write(obj.hiveId)
-      ..writeByte(1)
-      ..write(obj.hiveGeneratedAt)
-      ..writeByte(2)
-      ..write(obj.hiveGreeting)
-      ..writeByte(3)
-      ..write(obj.hiveWeather)
-      ..writeByte(4)
-      ..write(obj.hiveTopNews)
-      ..writeByte(5)
-      ..write(obj.hiveTodayEvents)
-      ..writeByte(6)
-      ..write(obj.hiveInsights);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DailyBriefingModelAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
-class AIInsightsModelAdapter extends TypeAdapter<AIInsightsModel> {
-  @override
-  final int typeId = 11;
-
-  @override
-  AIInsightsModel read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+Map<String, dynamic> _$DailyBriefingModelToJson(DailyBriefingModel instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'generatedAt': instance.generatedAt.toIso8601String(),
+      'errorMessage': instance.errorMessage,
+      'weather': instance.weather,
+      'topNews': instance.topNews,
+      'todayEvents': instance.todayEvents,
+      'insights': instance.insights,
     };
-    return AIInsightsModel(
-      hiveSummary: fields[0] as String,
-      hivePriorities: (fields[1] as List).cast<String>(),
-      hiveTrafficAlert: fields[2] as String?,
-      hiveSuggestions: (fields[3] as List).cast<String>(),
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, AIInsightsModel obj) {
-    writer
-      ..writeByte(4)
-      ..writeByte(0)
-      ..write(obj.hiveSummary)
-      ..writeByte(1)
-      ..write(obj.hivePriorities)
-      ..writeByte(2)
-      ..write(obj.hiveTrafficAlert)
-      ..writeByte(3)
-      ..write(obj.hiveSuggestions);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AIInsightsModelAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}

@@ -1,143 +1,74 @@
-import 'package:hive/hive.dart';
-
+import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/daily_briefing.dart';
-import 'calendar_event_model.dart';
-import 'news_article_model.dart';
 import 'weather_model.dart';
+import 'news_article_model.dart';
+import 'calendar_event_model.dart';
+import 'ai_insights_model.dart';
 
 part 'daily_briefing_model.g.dart';
 
-@HiveType(typeId: 10)
+@JsonSerializable()
 class DailyBriefingModel extends DailyBriefing {
-  @HiveField(0)
-  final String hiveId;
+  @override
+  final WeatherModel? weather;
 
-  @HiveField(1)
-  final DateTime hiveGeneratedAt;
+  @override
+  final List<NewsArticleModel> topNews;
 
-  @HiveField(2)
-  final String hiveGreeting;
+  @override
+  final List<CalendarEventModel> todayEvents;
 
-  @HiveField(3)
-  final Map<String, dynamic> hiveWeather;
+  @override
+  final AIInsightsModel? insights;
 
-  @HiveField(4)
-  final List<Map<String, dynamic>> hiveTopNews;
-
-  @HiveField(5)
-  final List<Map<String, dynamic>> hiveTodayEvents;
-
-  @HiveField(6)
-  final Map<String, dynamic> hiveInsights;
-
-  DailyBriefingModel({
-    required this.hiveId,
-    required this.hiveGeneratedAt,
-    required this.hiveGreeting,
-    required this.hiveWeather,
-    required this.hiveTopNews,
-    required this.hiveTodayEvents,
-    required this.hiveInsights,
+  const DailyBriefingModel({
+    required super.id,
+    required super.generatedAt,
+    this.weather,
+    required this.topNews,
+    required this.todayEvents,
+    this.insights,
+    super.errorMessage,
   }) : super(
-          id: hiveId,
-          generatedAt: hiveGeneratedAt,
-          greeting: hiveGreeting,
-          weather: WeatherModel.fromJson(hiveWeather),
-          topNews: hiveTopNews
-              .map((json) => NewsArticleModel.fromJson(json))
-              .toList(),
-          todayEvents: hiveTodayEvents
-              .map((json) => CalendarEventModel.fromJson(json))
-              .toList(),
-          insights: AIInsightsModel.fromJson(hiveInsights),
+          weather: weather,
+          topNews: topNews,
+          todayEvents: todayEvents,
+          insights: insights,
         );
 
-  factory DailyBriefingModel.fromEntity(DailyBriefing briefing) {
+  factory DailyBriefingModel.fromJson(Map<String, dynamic> json) =>
+      _$DailyBriefingModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$DailyBriefingModelToJson(this);
+
+  DailyBriefing toEntity() => DailyBriefing(
+        id: id,
+        generatedAt: generatedAt,
+        weather: weather?.toEntity(),
+        topNews: topNews.map((article) => article.toEntity()).toList(),
+        todayEvents: todayEvents.map((event) => event.toEntity()).toList(),
+        insights: insights?.toEntity(),
+        errorMessage: errorMessage,
+      );
+
+  /// Create a briefing with partial data (some sources may have failed)
+  factory DailyBriefingModel.partial({
+    required String id,
+    required DateTime generatedAt,
+    WeatherModel? weather,
+    List<NewsArticleModel>? topNews,
+    List<CalendarEventModel>? todayEvents,
+    AIInsightsModel? insights,
+    String? errorMessage,
+  }) {
     return DailyBriefingModel(
-      hiveId: briefing.id,
-      hiveGeneratedAt: briefing.generatedAt,
-      hiveGreeting: briefing.greeting,
-      hiveWeather: (briefing.weather as WeatherModel).toJson(),
-      hiveTopNews: briefing.topNews
-          .map((article) => (article as NewsArticleModel).toJson())
-          .toList(),
-      hiveTodayEvents: briefing.todayEvents
-          .map((event) => (event as CalendarEventModel).toJson())
-          .toList(),
-      hiveInsights: (briefing.insights as AIInsightsModel).toJson(),
+      id: id,
+      generatedAt: generatedAt,
+      weather: weather,
+      topNews: topNews ?? [],
+      todayEvents: todayEvents ?? [],
+      insights: insights,
+      errorMessage: errorMessage ?? '',
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': hiveId,
-      'generatedAt': hiveGeneratedAt.toIso8601String(),
-      'greeting': hiveGreeting,
-      'weather': hiveWeather,
-      'topNews': hiveTopNews,
-      'todayEvents': hiveTodayEvents,
-      'insights': hiveInsights,
-    };
-  }
-
-  factory DailyBriefingModel.fromJson(Map<String, dynamic> json) {
-    return DailyBriefingModel(
-      hiveId: json['id'] as String,
-      hiveGeneratedAt: DateTime.parse(json['generatedAt'] as String),
-      hiveGreeting: json['greeting'] as String,
-      hiveWeather: json['weather'] as Map<String, dynamic>,
-      hiveTopNews: (json['topNews'] as List)
-          .map((e) => e as Map<String, dynamic>)
-          .toList(),
-      hiveTodayEvents: (json['todayEvents'] as List)
-          .map((e) => e as Map<String, dynamic>)
-          .toList(),
-      hiveInsights: json['insights'] as Map<String, dynamic>,
-    );
-  }
-}
-
-@HiveType(typeId: 11)
-class AIInsightsModel extends AIInsights {
-  @HiveField(0)
-  final String hiveSummary;
-
-  @HiveField(1)
-  final List<String> hivePriorities;
-
-  @HiveField(2)
-  final String? hiveTrafficAlert;
-
-  @HiveField(3)
-  final List<String> hiveSuggestions;
-
-  const AIInsightsModel({
-    required this.hiveSummary,
-    required this.hivePriorities,
-    this.hiveTrafficAlert,
-    required this.hiveSuggestions,
-  }) : super(
-          summary: hiveSummary,
-          priorities: hivePriorities,
-          trafficAlert: hiveTrafficAlert,
-          suggestions: hiveSuggestions,
-        );
-
-  factory AIInsightsModel.fromJson(Map<String, dynamic> json) {
-    return AIInsightsModel(
-      hiveSummary: json['summary'] as String,
-      hivePriorities: (json['priorities'] as List).cast<String>(),
-      hiveTrafficAlert: json['trafficAlert'] as String?,
-      hiveSuggestions: (json['suggestions'] as List).cast<String>(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'summary': hiveSummary,
-      'priorities': hivePriorities,
-      'trafficAlert': hiveTrafficAlert,
-      'suggestions': hiveSuggestions,
-    };
   }
 }

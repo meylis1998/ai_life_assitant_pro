@@ -1,109 +1,128 @@
-import 'dart:convert';
-
+import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
-
 import '../models/weather_model.dart';
 
+/// Remote data source for weather data using OpenWeatherMap API
 abstract class WeatherApiDataSource {
-  Future<WeatherModel> getCurrentWeather({
-    String? cityName,
-    double? latitude,
-    double? longitude,
+  /// Get current weather and forecast by coordinates
+  Future<WeatherModel> getWeather({
+    required double latitude,
+    required double longitude,
   });
 
-  Future<List<ForecastModel>> getForecast({
-    String? cityName,
-    double? latitude,
-    double? longitude,
-  });
+  /// Get current weather and forecast by city name
+  Future<WeatherModel> getWeatherByCity(String cityName);
 }
 
 class WeatherApiDataSourceImpl implements WeatherApiDataSource {
-  final http.Client client;
+  final Dio dio;
   static const String _baseUrl = 'https://api.openweathermap.org/data/2.5';
 
-  WeatherApiDataSourceImpl({required this.client});
+  WeatherApiDataSourceImpl({required this.dio});
 
   String get _apiKey => dotenv.env['OPENWEATHER_API_KEY'] ?? '';
 
   @override
-  Future<WeatherModel> getCurrentWeather({
-    String? cityName,
-    double? latitude,
-    double? longitude,
+  Future<WeatherModel> getWeather({
+    required double latitude,
+    required double longitude,
   }) async {
-    String url;
-    if (cityName != null) {
-      url = '$_baseUrl/weather?q=$cityName&appid=$_apiKey&units=metric';
-    } else if (latitude != null && longitude != null) {
-      url = '$_baseUrl/weather?lat=$latitude&lon=$longitude&appid=$_apiKey&units=metric';
-    } else {
-      throw Exception('Either cityName or coordinates must be provided');
-    }
+    try {
+      // Fetch current weather
+      final currentResponse = await dio.get(
+        '$_baseUrl/weather',
+        queryParameters: {
+          'lat': latitude,
+          'lon': longitude,
+          'appid': _apiKey,
+          'units': 'metric', // Celsius
+        },
+      );
 
-    final response = await client.get(Uri.parse(url));
+      // Fetch 5-day forecast
+      final forecastResponse = await dio.get(
+        '$_baseUrl/forecast',
+        queryParameters: {
+          'lat': latitude,
+          'lon': longitude,
+          'appid': _apiKey,
+          'units': 'metric',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final responseBody = response.body;
-      final decodedJson = json.decode(responseBody);
-
-      // Log response for debugging
-      print('Weather API Response: $decodedJson');
-
-      return WeatherModel.fromJson(decodedJson);
-    } else if (response.statusCode == 401) {
-      throw Exception('Invalid API key');
-    } else if (response.statusCode == 404) {
-      throw Exception('City not found');
-    } else {
-      final errorBody = response.body;
-      throw Exception('Failed to load weather: ${response.statusCode}. Response: $errorBody');
+      return WeatherModel.fromOpenWeatherMap(
+        currentWeather: currentResponse.data as Map<String, dynamic>,
+        forecastData: forecastResponse.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Unexpected error fetching weather: $e');
     }
   }
 
   @override
-  Future<List<ForecastModel>> getForecast({
-    String? cityName,
-    double? latitude,
-    double? longitude,
-  }) async {
-    String url;
-    if (cityName != null) {
-      url = '$_baseUrl/forecast?q=$cityName&appid=$_apiKey&units=metric&cnt=5';
-    } else if (latitude != null && longitude != null) {
-      url = '$_baseUrl/forecast?lat=$latitude&lon=$longitude&appid=$_apiKey&units=metric&cnt=5';
-    } else {
-      throw Exception('Either cityName or coordinates must be provided');
+  Future<WeatherModel> getWeatherByCity(String cityName) async {
+    try {
+      // Fetch current weather
+      final currentResponse = await dio.get(
+        '$_baseUrl/weather',
+        queryParameters: {
+          'q': cityName,
+          'appid': _apiKey,
+          'units': 'metric',
+        },
+      );
+
+      // Extract coordinates for forecast
+      final coord = currentResponse.data['coord'] as Map<String, dynamic>;
+      final lat = (coord['lat'] as num).toDouble();
+      final lon = (coord['lon'] as num).toDouble();
+
+      // Fetch forecast
+      final forecastResponse = await dio.get(
+        '$_baseUrl/forecast',
+        queryParameters: {
+          'lat': lat,
+          'lon': lon,
+          'appid': _apiKey,
+          'units': 'metric',
+        },
+      );
+
+      return WeatherModel.fromOpenWeatherMap(
+        currentWeather: currentResponse.data as Map<String, dynamic>,
+        forecastData: forecastResponse.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Unexpected error fetching weather: $e');
     }
+  }
 
-    final response = await client.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final responseBody = response.body;
-      final data = json.decode(responseBody);
-
-      // Log response for debugging
-      print('Forecast API Response: $data');
-
-      final List<dynamic> forecastList = data['list'];
-
-      // Take one forecast per day (every 8th item, as data comes in 3-hour intervals)
-      final dailyForecasts = <ForecastModel>[];
-      for (int i = 0; i < forecastList.length; i += 8) {
-        if (i < forecastList.length) {
-          dailyForecasts.add(ForecastModel.fromJson(forecastList[i]));
+  Exception _handleDioError(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return Exception('Connection timeout. Please check your internet.');
+      case DioExceptionType.badResponse:
+        final statusCode = error.response?.statusCode;
+        if (statusCode == 401) {
+          return Exception('Invalid API key');
+        } else if (statusCode == 404) {
+          return Exception('Location not found');
+        } else if (statusCode == 429) {
+          return Exception('API rate limit exceeded');
         }
-      }
-
-      return dailyForecasts;
-    } else if (response.statusCode == 401) {
-      throw Exception('Invalid API key for forecast endpoint');
-    } else if (response.statusCode == 404) {
-      throw Exception('City not found for forecast');
-    } else {
-      final errorBody = response.body;
-      throw Exception('Failed to load forecast: ${response.statusCode}. Response: $errorBody');
+        return Exception('Server error: ${error.response?.statusMessage}');
+      case DioExceptionType.cancel:
+        return Exception('Request cancelled');
+      case DioExceptionType.unknown:
+        return Exception('Network error. Please check your connection.');
+      default:
+        return Exception('Unexpected error occurred');
     }
   }
 }

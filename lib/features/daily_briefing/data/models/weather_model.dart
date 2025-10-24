@@ -1,125 +1,135 @@
+import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/weather.dart';
+import 'forecast_model.dart';
 
+part 'weather_model.g.dart';
+
+@JsonSerializable()
 class WeatherModel extends Weather {
+  @override
+  final List<ForecastModel> forecast;
+
   const WeatherModel({
+    required super.location,
+    super.country,
+    super.region,
     required super.temperature,
     required super.feelsLike,
     required super.condition,
-    required super.description,
+    super.conditionDescription,
+    super.icon,
     required super.humidity,
     required super.windSpeed,
-    required super.pressure,
-    required super.cityName,
-    required super.forecast,
-  });
+    super.pressure,
+    super.visibility,
+    required super.timestamp,
+    required this.forecast,
+  }) : super(forecast: forecast);
 
-  factory WeatherModel.fromJson(Map<String, dynamic> json) {
-    // Check if this is serialized format (from toJson) or API format
-    final bool isSerializedFormat = json.containsKey('temperature');
+  factory WeatherModel.fromJson(Map<String, dynamic> json) =>
+      _$WeatherModelFromJson(json);
 
-    if (isSerializedFormat) {
-      // Handle our own serialized format (from toJson/cache)
-      return WeatherModel(
-        temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,
-        feelsLike: (json['feelsLike'] as num?)?.toDouble() ?? 0.0,
-        condition: json['condition'] as String? ?? 'Unknown',
-        description: json['description'] as String? ?? 'No description',
-        humidity: json['humidity'] as int? ?? 0,
-        windSpeed: (json['windSpeed'] as num?)?.toDouble() ?? 0.0,
-        pressure: json['pressure'] as int? ?? 0,
-        cityName: json['cityName'] as String? ?? 'Unknown',
-        forecast: (json['forecast'] as List?)
-                ?.map((f) => ForecastModel.fromJson(f as Map<String, dynamic>))
-                .toList() ??
-            [],
+  Map<String, dynamic> toJson() => _$WeatherModelToJson(this);
+
+  /// Create from OpenWeatherMap combined API response
+  ///
+  /// Combines data from both /weather (current) and /forecast (5-day) endpoints
+  factory WeatherModel.fromOpenWeatherMap({
+    required Map<String, dynamic> currentWeather,
+    required Map<String, dynamic> forecastData,
+  }) {
+    final main = currentWeather['main'] as Map<String, dynamic>;
+    final weather =
+        (currentWeather['weather'] as List).first as Map<String, dynamic>;
+    final wind = currentWeather['wind'] as Map<String, dynamic>;
+
+    // Parse forecast data (get one forecast per day, using midday forecast)
+    final forecastList = (forecastData['list'] as List)
+        .map((item) => ForecastModel.fromOpenWeatherMap(item as Map<String, dynamic>))
+        .toList();
+
+    // Group forecasts by date and take the midday one for each day
+    final dailyForecasts = <DateTime, ForecastModel>{};
+    for (final forecast in forecastList) {
+      final dateKey = DateTime(
+        forecast.date.year,
+        forecast.date.month,
+        forecast.date.day,
       );
+
+      // Prefer forecasts around noon (12:00)
+      if (!dailyForecasts.containsKey(dateKey) ||
+          (forecast.date.hour - 12).abs() <
+              (dailyForecasts[dateKey]!.date.hour - 12).abs()) {
+        dailyForecasts[dateKey] = forecast;
+      }
     }
 
-    // Handle OpenWeather API format
-    if (json['main'] == null || json['weather'] == null) {
-      final errorMsg = json['message'] ?? json['error'] ?? 'Missing required fields';
-      throw FormatException(
-        'Invalid weather API response: $errorMsg. Please check your OpenWeather API key in .env file.',
-      );
-    }
+    // Take up to 5 days of forecast
+    final sortedForecasts = dailyForecasts.values.toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final next5Days = sortedForecasts.take(5).toList();
+
+    // Extract country information from sys object
+    final sys = currentWeather['sys'] as Map<String, dynamic>?;
+    final country = sys?['country'] as String?;
+
+    // Debug logging
+    print('🌍 Weather API Response:');
+    print('  City: ${currentWeather['name']}');
+    print('  Country: $country');
+    print('  Sys object: $sys');
 
     return WeatherModel(
-      temperature: (json['main']?['temp'] as num?)?.toDouble() ?? 0.0,
-      feelsLike: (json['main']?['feels_like'] as num?)?.toDouble() ?? 0.0,
-      condition: json['weather']?[0]?['main'] as String? ?? 'Unknown',
-      description: json['weather']?[0]?['description'] as String? ?? 'No description',
-      humidity: json['main']?['humidity'] as int? ?? 0,
-      windSpeed: (json['wind']?['speed'] as num?)?.toDouble() ?? 0.0,
-      pressure: json['main']?['pressure'] as int? ?? 0,
-      cityName: json['name'] as String? ?? 'Unknown',
-      forecast: [], // Will be populated separately from forecast API
+      location: currentWeather['name'] as String,
+      country: country,
+      region: null, // OpenWeatherMap doesn't provide region/state info
+      temperature: (main['temp'] as num).toDouble(),
+      feelsLike: (main['feels_like'] as num).toDouble(),
+      condition: weather['main'] as String,
+      conditionDescription: weather['description'] as String?,
+      icon: weather['icon'] as String?,
+      humidity: main['humidity'] as int,
+      windSpeed: (wind['speed'] as num).toDouble(),
+      pressure: main['pressure'] as int?,
+      visibility: currentWeather['visibility'] as int?,
+      timestamp: DateTime.now(),
+      forecast: next5Days,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'temperature': temperature,
-      'feelsLike': feelsLike,
-      'condition': condition,
-      'description': description,
-      'humidity': humidity,
-      'windSpeed': windSpeed,
-      'pressure': pressure,
-      'cityName': cityName,
-      'forecast': forecast.map((f) => (f as ForecastModel).toJson()).toList(),
-    };
-  }
-}
-
-class ForecastModel extends Forecast {
-  const ForecastModel({
-    required super.date,
-    required super.maxTemp,
-    required super.minTemp,
-    required super.condition,
-    required super.description,
-    required super.humidity,
-  });
-
-  factory ForecastModel.fromJson(Map<String, dynamic> json) {
-    // Check if this is serialized format (from toJson) or API format
-    final bool isSerializedFormat = json.containsKey('maxTemp');
-
-    if (isSerializedFormat) {
-      // Handle our own serialized format (from toJson/cache)
-      return ForecastModel(
-        date: DateTime.fromMillisecondsSinceEpoch(json['dt'] as int),
-        maxTemp: (json['maxTemp'] as num?)?.toDouble() ?? 0.0,
-        minTemp: (json['minTemp'] as num?)?.toDouble() ?? 0.0,
-        condition: json['condition'] as String? ?? 'Unknown',
-        description: json['description'] as String? ?? 'No description',
-        humidity: json['humidity'] as int? ?? 0,
+  Weather toEntity() => Weather(
+        location: location,
+        country: country,
+        region: region,
+        temperature: temperature,
+        feelsLike: feelsLike,
+        condition: condition,
+        conditionDescription: conditionDescription,
+        icon: icon,
+        humidity: humidity,
+        windSpeed: windSpeed,
+        pressure: pressure,
+        visibility: visibility,
+        timestamp: timestamp,
+        forecast: forecast.map((f) => f.toEntity()).toList(),
       );
-    }
 
-    // Handle OpenWeather API format
-    if (json['main'] == null || json['weather'] == null) {
-      throw FormatException('Invalid forecast data from API');
-    }
-
-    return ForecastModel(
-      date: DateTime.fromMillisecondsSinceEpoch((json['dt'] as int? ?? 0) * 1000),
-      maxTemp: (json['main']?['temp_max'] as num?)?.toDouble() ?? 0.0,
-      minTemp: (json['main']?['temp_min'] as num?)?.toDouble() ?? 0.0,
-      condition: json['weather']?[0]?['main'] as String? ?? 'Unknown',
-      description: json['weather']?[0]?['description'] as String? ?? 'No description',
-      humidity: json['main']?['humidity'] as int? ?? 0,
+  /// Create model from entity
+  factory WeatherModel.fromEntity(Weather entity) {
+    return WeatherModel(
+      location: entity.location,
+      temperature: entity.temperature,
+      feelsLike: entity.feelsLike,
+      condition: entity.condition,
+      conditionDescription: entity.conditionDescription,
+      icon: entity.icon,
+      humidity: entity.humidity,
+      windSpeed: entity.windSpeed,
+      pressure: entity.pressure,
+      visibility: entity.visibility,
+      timestamp: entity.timestamp,
+      forecast: entity.forecast.map((f) => ForecastModel.fromEntity(f)).toList(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'dt': date.millisecondsSinceEpoch ~/ 1000,
-      'maxTemp': maxTemp,
-      'minTemp': minTemp,
-      'condition': condition,
-      'description': description,
-      'humidity': humidity,
-    };
   }
 }

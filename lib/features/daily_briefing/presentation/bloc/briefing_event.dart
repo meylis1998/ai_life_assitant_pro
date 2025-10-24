@@ -1,5 +1,6 @@
-import 'package:equatable/equatable.dart';
+part of 'briefing_bloc.dart';
 
+/// Base class for all briefing events
 abstract class BriefingEvent extends Equatable {
   const BriefingEvent();
 
@@ -7,40 +8,37 @@ abstract class BriefingEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+/// Event to request briefing generation
 class BriefingRequested extends BriefingEvent {
-  final String? userName;
-  final String? cityName;
-  final double? latitude;
-  final double? longitude;
+  final bool forceRefresh;
 
-  const BriefingRequested({
-    this.userName,
-    this.cityName,
-    this.latitude,
-    this.longitude,
-  });
+  const BriefingRequested({this.forceRefresh = false});
 
   @override
-  List<Object?> get props => [userName, cityName, latitude, longitude];
+  List<Object?> get props => [forceRefresh];
 }
 
-class BriefingRefreshRequested extends BriefingEvent {
-  final String? userName;
-  final String? cityName;
-  final double? latitude;
-  final double? longitude;
-
-  const BriefingRefreshRequested({
-    this.userName,
-    this.cityName,
-    this.latitude,
-    this.longitude,
-  });
-
-  @override
-  List<Object?> get props => [userName, cityName, latitude, longitude];
+/// Event to refresh the briefing (pull-to-refresh)
+class BriefingRefreshed extends BriefingEvent {
+  const BriefingRefreshed();
 }
 
+/// Event to load cached briefing
 class CachedBriefingRequested extends BriefingEvent {
   const CachedBriefingRequested();
+}
+
+/// Event to save preferences
+class PreferencesSaved extends BriefingEvent {
+  final BriefingPreferences preferences;
+
+  const PreferencesSaved(this.preferences);
+
+  @override
+  List<Object?> get props => [preferences];
+}
+
+/// Event to load preferences
+class PreferencesRequested extends BriefingEvent {
+  const PreferencesRequested();
 }

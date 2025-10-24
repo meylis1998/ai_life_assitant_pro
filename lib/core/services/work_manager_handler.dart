@@ -1,8 +1,8 @@
 import 'package:workmanager/workmanager.dart';
 
-import '../../features/daily_briefing/domain/usecases/generate_daily_briefing.dart';
+import '../../features/daily_briefing/domain/usecases/generate_daily_briefing_usecase.dart';
+import '../../features/daily_briefing/domain/repositories/briefing_repository.dart';
 import '../../injection_container.dart' as di;
-import 'briefing_preferences_service.dart';
 import 'notification_service.dart';
 
 /// Callback for WorkManager background tasks
@@ -12,7 +12,7 @@ void workManagerCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
       // Initialize dependencies if needed
-      if (!di.sl.isRegistered<BriefingPreferencesService>()) {
+      if (!di.sl.isRegistered<BriefingRepository>()) {
         await di.init();
       }
 
@@ -33,18 +33,31 @@ void workManagerCallbackDispatcher() {
 /// Handle daily briefing background task
 Future<bool> _handleDailyBriefingTask(Map<String, dynamic>? inputData) async {
   try {
-    final prefsService = di.sl<BriefingPreferencesService>();
+    // Get repository and preferences
+    final repository = di.sl<BriefingRepository>();
+    final preferencesResult = await repository.getPreferences();
 
-    // Check if notifications are enabled
-    if (!prefsService.notificationsEnabled) {
-      return true; // Task succeeded, just didn't send notification
+    // If we can't get preferences, fail
+    if (preferencesResult.isLeft()) {
+      print('Failed to get briefing preferences');
+      return false;
+    }
+
+    final preferences = preferencesResult.fold(
+      (failure) => null,
+      (prefs) => prefs,
+    );
+
+    if (preferences == null) {
+      return false;
     }
 
     // Generate briefing
-    final generateBriefing = di.sl<GenerateDailyBriefing>();
+    final generateBriefing = di.sl<GenerateDailyBriefingUseCase>();
     final result = await generateBriefing(
       GenerateDailyBriefingParams(
-        cityName: prefsService.useGps ? null : prefsService.city,
+        preferences: preferences,
+        forceRefresh: true,
       ),
     );
 
@@ -59,9 +72,14 @@ Future<bool> _handleDailyBriefingTask(Map<String, dynamic>? inputData) async {
         // Send notification
         final notificationService = di.sl<NotificationService>();
 
-        // Create notification summary
-        final priorities = briefing.insights.priorities.take(3).join(', ');
-        final body = 'Priorities: $priorities';
+        // Create notification summary - handle null insights
+        String body;
+        if (briefing.insights != null && briefing.insights!.priorities.isNotEmpty) {
+          final priorities = briefing.insights!.priorities.take(3).join(', ');
+          body = 'Priorities: $priorities';
+        } else {
+          body = 'Your daily briefing is ready to view!';
+        }
 
         await notificationService.showBriefingNotification(
           title: '${_getGreeting()} Your daily briefing is ready!',

@@ -1,94 +1,43 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Service for securely storing and retrieving API keys
+/// Service for retrieving API keys from environment variables
 class ApiKeyService {
   final FlutterSecureStorage secureStorage;
 
-  // Storage keys
-  static const String _geminiKeyName = 'gemini_api_key';
-  static const String _claudeKeyName = 'claude_api_key';
-  static const String _openaiKeyName = 'openai_api_key';
-
   ApiKeyService({required this.secureStorage});
 
-  /// Save Gemini API key
-  Future<void> saveGeminiKey(String apiKey) async {
-    await secureStorage.write(key: _geminiKeyName, value: apiKey);
-  }
-
-  /// Get Gemini API key
+  /// Get Gemini API key from environment
   Future<String?> getGeminiKey() async {
-    return await secureStorage.read(key: _geminiKeyName);
+    return dotenv.env['GEMINI_API_KEY'];
   }
 
-  /// Delete Gemini API key
-  Future<void> deleteGeminiKey() async {
-    await secureStorage.delete(key: _geminiKeyName);
-  }
-
-  /// Save Claude API key
-  Future<void> saveClaudeKey(String apiKey) async {
-    await secureStorage.write(key: _claudeKeyName, value: apiKey);
-  }
-
-  /// Get Claude API key
+  /// Get Claude API key from environment
   Future<String?> getClaudeKey() async {
-    return await secureStorage.read(key: _claudeKeyName);
+    return dotenv.env['CLAUDE_API_KEY'];
   }
 
-  /// Delete Claude API key
-  Future<void> deleteClaudeKey() async {
-    await secureStorage.delete(key: _claudeKeyName);
-  }
-
-  /// Save OpenAI API key
-  Future<void> saveOpenAIKey(String apiKey) async {
-    await secureStorage.write(key: _openaiKeyName, value: apiKey);
-  }
-
-  /// Get OpenAI API key
+  /// Get OpenAI API key from environment
   Future<String?> getOpenAIKey() async {
-    return await secureStorage.read(key: _openaiKeyName);
-  }
-
-  /// Delete OpenAI API key
-  Future<void> deleteOpenAIKey() async {
-    await secureStorage.delete(key: _openaiKeyName);
+    return dotenv.env['OPENAI_API_KEY'];
   }
 
   /// Check if Gemini key is configured
   Future<bool> hasGeminiKey() async {
     final key = await getGeminiKey();
-    return key != null && key.isNotEmpty;
+    return key != null && key.isNotEmpty && key != 'your_gemini_api_key_here';
   }
 
   /// Check if Claude key is configured
   Future<bool> hasClaudeKey() async {
     final key = await getClaudeKey();
-    return key != null && key.isNotEmpty;
+    return key != null && key.isNotEmpty && key != 'your_claude_api_key_here';
   }
 
   /// Check if OpenAI key is configured
   Future<bool> hasOpenAIKey() async {
     final key = await getOpenAIKey();
-    return key != null && key.isNotEmpty;
-  }
-
-  /// Save API key by provider name
-  Future<void> saveApiKey(String keyName, String apiKey) async {
-    switch (keyName) {
-      case 'gemini_api_key':
-        await saveGeminiKey(apiKey);
-        break;
-      case 'claude_api_key':
-        await saveClaudeKey(apiKey);
-        break;
-      case 'openai_api_key':
-        await saveOpenAIKey(apiKey);
-        break;
-      default:
-        throw ArgumentError('Unknown API key name: $keyName');
-    }
+    return key != null && key.isNotEmpty && !key.startsWith('your_');
   }
 
   /// Get API key by provider name
@@ -105,29 +54,40 @@ class ApiKeyService {
     }
   }
 
-  /// Delete API key by provider name
-  Future<void> deleteApiKey(String keyName) async {
-    switch (keyName) {
-      case 'gemini_api_key':
-        await deleteGeminiKey();
-        break;
-      case 'claude_api_key':
-        await deleteClaudeKey();
-        break;
-      case 'openai_api_key':
-        await deleteOpenAIKey();
-        break;
-      default:
-        throw ArgumentError('Unknown API key name: $keyName');
-    }
+  // Legacy methods for compatibility (no-op since we're reading from env)
+  Future<void> saveGeminiKey(String apiKey) async {
+    // No-op: Keys are now read from .env file
   }
 
-  /// Clear all API keys
+  Future<void> saveClaudeKey(String apiKey) async {
+    // No-op: Keys are now read from .env file
+  }
+
+  Future<void> saveOpenAIKey(String apiKey) async {
+    // No-op: Keys are now read from .env file
+  }
+
+  Future<void> saveApiKey(String keyName, String apiKey) async {
+    // No-op: Keys are now read from .env file
+  }
+
+  Future<void> deleteGeminiKey() async {
+    // No-op: Keys are now read from .env file
+  }
+
+  Future<void> deleteClaudeKey() async {
+    // No-op: Keys are now read from .env file
+  }
+
+  Future<void> deleteOpenAIKey() async {
+    // No-op: Keys are now read from .env file
+  }
+
+  Future<void> deleteApiKey(String keyName) async {
+    // No-op: Keys are now read from .env file
+  }
+
   Future<void> clearAllKeys() async {
-    await Future.wait([
-      deleteGeminiKey(),
-      deleteClaudeKey(),
-      deleteOpenAIKey(),
-    ]);
+    // No-op: Keys are now read from .env file
   }
 }

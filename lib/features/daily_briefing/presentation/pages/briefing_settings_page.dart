@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-
-import '../../../../core/services/briefing_preferences_service.dart';
-import '../../../../injection_container.dart' as di;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../domain/repositories/briefing_repository.dart';
+import '../bloc/briefing_bloc.dart';
+import '../../../../core/theme/text_styles.dart';
+import '../../../../core/theme/color_palette.dart';
+import '../../../../core/dependency_injection/injection_container.dart';
 
 class BriefingSettingsPage extends StatefulWidget {
   const BriefingSettingsPage({super.key});
@@ -11,23 +16,46 @@ class BriefingSettingsPage extends StatefulWidget {
 }
 
 class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
-  final _prefsService = di.sl<BriefingPreferencesService>();
   final _cityController = TextEditingController();
+  final _userNameController = TextEditingController();
 
-  bool _useGps = true;
-  bool _scheduleEnabled = false;
-  bool _notificationsEnabled = true;
-  TimeOfDay _scheduleTime = const TimeOfDay(hour: 7, minute: 0);
+  String? _selectedCountry = 'us';
   final List<String> _selectedCategories = [];
+  final List<String> _interests = [];
+  bool _useCurrentLocation = false;
+  double? _latitude;
+  double? _longitude;
+
+  final List<String> _availableCountries = [
+    'us',
+    'gb',
+    'ca',
+    'au',
+    'de',
+    'fr',
+    'jp',
+    'cn',
+  ];
+
+  final Map<String, String> _countryNames = {
+    'us': 'United States',
+    'gb': 'United Kingdom',
+    'ca': 'Canada',
+    'au': 'Australia',
+    'de': 'Germany',
+    'fr': 'France',
+    'jp': 'Japan',
+    'cn': 'China',
+  };
 
   final List<String> _availableCategories = [
     'general',
     'business',
     'technology',
-    'science',
-    'health',
     'sports',
     'entertainment',
+    'health',
+    'science',
   ];
 
   @override
@@ -36,211 +64,398 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
     _loadPreferences();
   }
 
-  void _loadPreferences() {
-    setState(() {
-      _useGps = _prefsService.useGps;
-      _cityController.text = _prefsService.city;
-      _scheduleEnabled = _prefsService.scheduleEnabled;
-      _notificationsEnabled = _prefsService.notificationsEnabled;
-      _scheduleTime = TimeOfDay(
-        hour: _prefsService.scheduleHour,
-        minute: _prefsService.scheduleMinute,
-      );
-      _selectedCategories.clear();
-      _selectedCategories.addAll(_prefsService.newsCategories);
-    });
-  }
-
-  Future<void> _savePreferences() async {
-    await _prefsService.setUseGps(_useGps);
-    await _prefsService.setCity(_cityController.text);
-    await _prefsService.setScheduleEnabled(_scheduleEnabled);
-    await _prefsService.setNotificationsEnabled(_notificationsEnabled);
-    await _prefsService.setScheduleHour(_scheduleTime.hour);
-    await _prefsService.setScheduleMinute(_scheduleTime.minute);
-    await _prefsService.setNewsCategories(_selectedCategories);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings saved successfully!')),
-      );
-      Navigator.pop(context, true); // Return true to indicate settings changed
-    }
-  }
-
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _scheduleTime,
-    );
-
-    if (picked != null) {
-      setState(() {
-        _scheduleTime = picked;
-      });
-    }
+  Future<void> _loadPreferences() async {
+    final bloc = context.read<BriefingBloc>();
+    bloc.add(const PreferencesRequested());
   }
 
   @override
   void dispose() {
     _cityController.dispose();
+    _userNameController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Briefing Settings'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: _savePreferences,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Briefing Settings',
+          style: AppTextStyles.heading3.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: BlocListener<BriefingBloc, BriefingState>(
+        listener: (context, state) {
+          if (state is PreferencesLoaded) {
+            _cityController.text = state.preferences.preferredCity ?? '';
+            _userNameController.text = state.preferences.userName ?? '';
+            _selectedCountry = state.preferences.country ?? 'us';
+            _latitude = state.preferences.latitude;
+            _longitude = state.preferences.longitude;
+
+            if (state.preferences.newsCategories != null) {
+              _selectedCategories.clear();
+              _selectedCategories.addAll(state.preferences.newsCategories!);
+            }
+
+            if (state.preferences.interests != null) {
+              _interests.clear();
+              _interests.addAll(state.preferences.interests!);
+            }
+
+            setState(() {
+              _useCurrentLocation = _latitude != null && _longitude != null;
+            });
+          }
+        },
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSection(
+                title: 'Personal',
+                icon: Icons.person_outline,
+                children: [
+                  _buildTextField(
+                    controller: _userNameController,
+                    label: 'Your Name',
+                    hint: 'Enter your name (optional)',
+                    icon: Icons.person,
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 24.h),
+
+              _buildSection(
+                title: 'Location & Weather',
+                icon: Icons.location_on_outlined,
+                children: [
+                  _buildSwitchTile(
+                    title: 'Use Current Location',
+                    subtitle: 'Get weather for your current location',
+                    value: _useCurrentLocation,
+                    onChanged: (value) async {
+                      if (value) {
+                        await _requestLocationPermission();
+                      } else {
+                        setState(() {
+                          _useCurrentLocation = false;
+                          _latitude = null;
+                          _longitude = null;
+                        });
+                      }
+                    },
+                  ),
+
+                  if (!_useCurrentLocation) ...[
+                    SizedBox(height: 16.h),
+                    _buildTextField(
+                      controller: _cityController,
+                      label: 'City Name',
+                      hint: 'Enter city name',
+                      icon: Icons.location_city,
+                    ),
+                  ],
+                ],
+              ),
+
+              SizedBox(height: 24.h),
+
+              _buildSection(
+                title: 'News Preferences',
+                icon: Icons.newspaper,
+                children: [
+                  _buildDropdown(
+                    label: 'Country',
+                    value: _selectedCountry,
+                    items: _availableCountries,
+                    itemBuilder: (country) => _countryNames[country] ?? country,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCountry = value;
+                      });
+                    },
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  Text(
+                    'News Categories',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 8.h,
+                    children: _availableCategories.map((category) {
+                      final isSelected = _selectedCategories.contains(category);
+                      return FilterChip(
+                        label: Text(
+                          category[0].toUpperCase() + category.substring(1),
+                        ),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedCategories.add(category);
+                            } else {
+                              _selectedCategories.remove(category);
+                            }
+                          });
+                        },
+                        backgroundColor: Colors.white,
+                        selectedColor: ColorPalette.primary.withOpacity(0.2),
+                        checkmarkColor: ColorPalette.primary,
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 32.h),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _savePreferences,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorPalette.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  child: Text(
+                    'Save Preferences',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 32.h),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Location Settings
-          _buildSectionHeader('Location'),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Use GPS Location'),
-                  subtitle: const Text('Automatically detect your location'),
-                  value: _useGps,
-                  onChanged: (value) {
-                    setState(() {
-                      _useGps = value;
-                    });
-                  },
+          Row(
+            children: [
+              Icon(icon, size: 24.w, color: ColorPalette.primary),
+              SizedBox(width: 8.w),
+              Text(
+                title,
+                style: AppTextStyles.heading4.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                if (!_useGps) ...[
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _cityController,
-                      decoration: const InputDecoration(
-                        labelText: 'City Name',
-                        hintText: 'Enter city name',
-                        prefixIcon: Icon(Icons.location_city),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // News Preferences
-          _buildSectionHeader('News Categories'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _availableCategories.map((category) {
-                  final isSelected = _selectedCategories.contains(category);
-                  return FilterChip(
-                    label: Text(
-                      category[0].toUpperCase() + category.substring(1),
-                    ),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedCategories.add(category);
-                        } else {
-                          _selectedCategories.remove(category);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 24),
-
-          // Schedule Settings
-          _buildSectionHeader('Daily Schedule'),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Morning Briefing'),
-                  subtitle: const Text('Get daily briefing at scheduled time'),
-                  value: _scheduleEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _scheduleEnabled = value;
-                    });
-                  },
-                ),
-                if (_scheduleEnabled) ...[
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.schedule),
-                    title: const Text('Schedule Time'),
-                    subtitle: Text(_scheduleTime.format(context)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: _pickTime,
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    title: const Text('Notifications'),
-                    subtitle: const Text('Show notification with briefing summary'),
-                    value: _notificationsEnabled,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationsEnabled = value;
-                      });
-                    },
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Info Card
-          Card(
-            color: Colors.blue.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Changes will take effect on next briefing refresh',
-                      style: TextStyle(color: Colors.blue.shade900),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          SizedBox(height: 16.h),
+          ...children,
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: BorderSide(color: ColorPalette.primary, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      title: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+        style: AppTextStyles.bodyMedium.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: AppTextStyles.bodySmall.copyWith(
+          color: Colors.grey[600],
+        ),
+      ),
+      value: value,
+      onChanged: onChanged,
+      activeColor: ColorPalette.primary,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required String Function(String) itemBuilder,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.bodyMedium.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        SizedBox(height: 8.h),
+        DropdownButtonFormField<String>(
+          value: value,
+          items: items.map((item) {
+            return DropdownMenuItem(
+              value: item,
+              child: Text(itemBuilder(item)),
+            );
+          }).toList(),
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.r),
+              borderSide: BorderSide(color: ColorPalette.primary, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _requestLocationPermission() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showError('Location services are disabled.');
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showError('Location permissions are denied');
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showError(
+        'Location permissions are permanently denied. Please enable in settings.',
+      );
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _useCurrentLocation = true;
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+    } catch (e) {
+      _showError('Failed to get location: $e');
+    }
+  }
+
+  void _savePreferences() {
+    final preferences = BriefingPreferences(
+      preferredCity: _cityController.text.isNotEmpty ? _cityController.text : null,
+      latitude: _latitude,
+      longitude: _longitude,
+      country: _selectedCountry,
+      newsCategories: _selectedCategories.isNotEmpty ? _selectedCategories : null,
+      userName: _userNameController.text.isNotEmpty ? _userNameController.text : null,
+      interests: _interests.isNotEmpty ? _interests : null,
+    );
+
+    context.read<BriefingBloc>().add(PreferencesSaved(preferences));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Preferences saved successfully!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    Navigator.of(context).pop();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
       ),
     );
   }

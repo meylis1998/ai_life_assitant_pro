@@ -1,66 +1,55 @@
 import 'package:equatable/equatable.dart';
+import 'forecast.dart';
 
+/// Represents current weather conditions and forecast
 class Weather extends Equatable {
+  final String location;
+  final String? country;
+  final String? region;
   final double temperature;
   final double feelsLike;
   final String condition;
-  final String description;
+  final String? conditionDescription;
+  final String? icon;
   final int humidity;
   final double windSpeed;
-  final int pressure;
-  final String cityName;
+  final int? pressure;
+  final int? visibility;
+  final DateTime timestamp;
   final List<Forecast> forecast;
 
   const Weather({
+    required this.location,
+    this.country,
+    this.region,
     required this.temperature,
     required this.feelsLike,
     required this.condition,
-    required this.description,
+    this.conditionDescription,
+    this.icon,
     required this.humidity,
     required this.windSpeed,
-    required this.pressure,
-    required this.cityName,
+    this.pressure,
+    this.visibility,
+    required this.timestamp,
     required this.forecast,
   });
 
   @override
   List<Object?> get props => [
+        location,
+        country,
+        region,
         temperature,
         feelsLike,
         condition,
-        description,
+        conditionDescription,
+        icon,
         humidity,
         windSpeed,
         pressure,
-        cityName,
+        visibility,
+        timestamp,
         forecast,
-      ];
-}
-
-class Forecast extends Equatable {
-  final DateTime date;
-  final double maxTemp;
-  final double minTemp;
-  final String condition;
-  final String description;
-  final int humidity;
-
-  const Forecast({
-    required this.date,
-    required this.maxTemp,
-    required this.minTemp,
-    required this.condition,
-    required this.description,
-    required this.humidity,
-  });
-
-  @override
-  List<Object?> get props => [
-        date,
-        maxTemp,
-        minTemp,
-        condition,
-        description,
-        humidity,
       ];
 }

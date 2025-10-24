@@ -35,6 +35,7 @@ migrate_working_dir/
 .env
 .claude
 firebase.json
+.vscode
 
 # Symbolication related
 app.*.symbols
@@ -46,6 +47,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Keystore files
+upload-keystore.jks
+*.jks
 
 # Environment variables
 .env
