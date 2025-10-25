@@ -55,6 +55,7 @@ upload-keystore.jks
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # Firebase configuration with API keys
 lib/firebase_options.dart
