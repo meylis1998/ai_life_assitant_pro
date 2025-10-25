@@ -3,17 +3,25 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/daily_briefing.dart';
 import '../../domain/repositories/briefing_repository.dart';
 import '../../domain/usecases/generate_daily_briefing_usecase.dart';
+import '../../domain/usecases/get_preferences_usecase.dart';
+import '../../domain/usecases/save_preferences_usecase.dart';
+import '../../domain/usecases/get_cached_briefing_usecase.dart';
+import '../../../../core/usecases/usecase.dart';
 
 part 'briefing_event.dart';
 part 'briefing_state.dart';
 
 class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
   final GenerateDailyBriefingUseCase generateDailyBriefingUseCase;
-  final BriefingRepository briefingRepository;
+  final GetPreferencesUseCase getPreferencesUseCase;
+  final SavePreferencesUseCase savePreferencesUseCase;
+  final GetCachedBriefingUseCase getCachedBriefingUseCase;
 
   BriefingBloc({
     required this.generateDailyBriefingUseCase,
-    required this.briefingRepository,
+    required this.getPreferencesUseCase,
+    required this.savePreferencesUseCase,
+    required this.getCachedBriefingUseCase,
   }) : super(const BriefingInitial()) {
     on<BriefingRequested>(_onBriefingRequested);
     on<BriefingRefreshed>(_onBriefingRefreshed);
@@ -29,7 +37,7 @@ class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
     emit(const BriefingLoading());
 
     // Get preferences first
-    final preferencesResult = await briefingRepository.getPreferences();
+    final preferencesResult = await getPreferencesUseCase(NoParams());
 
     final preferences = preferencesResult.fold(
       (failure) => null,
@@ -68,7 +76,7 @@ class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
     } else {
       // Try to load cached briefing on error
       final failure = result.fold((f) => f, (_) => null);
-      final cachedResult = await briefingRepository.getCachedBriefing();
+      final cachedResult = await getCachedBriefingUseCase(NoParams());
 
       final cached = cachedResult.fold(
         (_) => null,
@@ -96,7 +104,7 @@ class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
     final currentState = state;
 
     // Get preferences
-    final preferencesResult = await briefingRepository.getPreferences();
+    final preferencesResult = await getPreferencesUseCase(NoParams());
 
     final preferences = preferencesResult.fold(
       (failure) => null,
@@ -152,8 +160,8 @@ class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
   ) async {
     emit(const BriefingLoading());
 
-    final preferencesResult = await briefingRepository.getPreferences();
-    final cachedResult = await briefingRepository.getCachedBriefing();
+    final preferencesResult = await getPreferencesUseCase(NoParams());
+    final cachedResult = await getCachedBriefingUseCase(NoParams());
 
     final preferences = preferencesResult.fold(
       (failure) => null,
@@ -189,7 +197,9 @@ class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
     PreferencesSaved event,
     Emitter<BriefingState> emit,
   ) async {
-    final result = await briefingRepository.savePreferences(event.preferences);
+    final result = await savePreferencesUseCase(
+      SavePreferencesParams(preferences: event.preferences),
+    );
 
     result.fold(
       (failure) {
@@ -212,7 +222,7 @@ class BriefingBloc extends Bloc<BriefingEvent, BriefingState> {
     PreferencesRequested event,
     Emitter<BriefingState> emit,
   ) async {
-    final result = await briefingRepository.getPreferences();
+    final result = await getPreferencesUseCase(NoParams());
 
     result.fold(
       (failure) {

@@ -9,6 +9,7 @@ import '../../features/auth/presentation/pages/sign_in_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/ai_chat/presentation/pages/chat_page.dart';
 import '../../features/daily_briefing/presentation/pages/briefing_page.dart';
+import '../../features/daily_briefing/presentation/pages/briefing_settings_page.dart';
 import '../../injection_container.dart' as di;
 import 'scaffold_with_nav_bar.dart';
 
@@ -84,6 +85,18 @@ class AppRouter {
                 name: 'briefing',
                 pageBuilder: (context, state) =>
                     const NoTransitionPage(child: BriefingPage()),
+                routes: [
+                  // Briefing settings sub-route
+                  GoRoute(
+                    path: '/settings',
+                    name: 'briefing-settings',
+                    pageBuilder: (context, state) =>
+                        MaterialPage(
+                          key: state.pageKey,
+                          child: const BriefingSettingsPage(),
+                        ),
+                  ),
+                ],
               ),
             ],
           ),

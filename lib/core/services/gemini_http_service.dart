@@ -16,15 +16,15 @@ class GeminiHttpService {
     required String model,
     required String prompt,
     double temperature = 0.7,
-    int maxOutputTokens = 8192,
+    int maxOutputTokens = 65536,
   }) async {
-    // List of models to try in order (from newest to most reliable)
+    // List of models to try in order (updated for 2025)
     // Note: Use exact model names from Google AI Studio
     final modelsToTry = [
       model, // Try requested model first
-      'gemini-1.5-flash-latest', // Fallback to stable flash
-      'gemini-1.5-pro-latest', // Fallback to pro version
-      'gemini-pro', // Final fallback to legacy
+      'gemini-2.5-flash', // Fallback to stable flash
+      'gemini-2.5-pro', // Fallback to pro version
+      'gemini-2.0-flash', // Final fallback to 2.0 series
     ];
 
     Exception? lastException;
@@ -64,7 +64,7 @@ class GeminiHttpService {
     required String model,
     required String prompt,
     double temperature = 0.7,
-    int maxOutputTokens = 8192,
+    int maxOutputTokens = 65536,
     int attemptNumber = 1,
   }) async {
     final url = Uri.parse('$baseUrl/models/$model:generateContent?key=$apiKey');
@@ -134,7 +134,7 @@ class GeminiHttpService {
     required String model,
     required String prompt,
     double temperature = 0.7,
-    int maxOutputTokens = 8192,
+    int maxOutputTokens = 65536,
   }) async* {
     final url = Uri.parse(
       '$baseUrl/models/$model:streamGenerateContent?key=$apiKey&alt=sse',

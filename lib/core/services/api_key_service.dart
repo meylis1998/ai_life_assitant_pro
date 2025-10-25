@@ -1,11 +1,8 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Service for retrieving API keys from environment variables
 class ApiKeyService {
-  final FlutterSecureStorage secureStorage;
-
-  ApiKeyService({required this.secureStorage});
+  const ApiKeyService();
 
   /// Get Gemini API key from environment
   Future<String?> getGeminiKey() async {
@@ -54,40 +51,4 @@ class ApiKeyService {
     }
   }
 
-  // Legacy methods for compatibility (no-op since we're reading from env)
-  Future<void> saveGeminiKey(String apiKey) async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> saveClaudeKey(String apiKey) async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> saveOpenAIKey(String apiKey) async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> saveApiKey(String keyName, String apiKey) async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> deleteGeminiKey() async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> deleteClaudeKey() async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> deleteOpenAIKey() async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> deleteApiKey(String keyName) async {
-    // No-op: Keys are now read from .env file
-  }
-
-  Future<void> clearAllKeys() async {
-    // No-op: Keys are now read from .env file
-  }
 }

@@ -20,11 +20,11 @@ class AIInsightsDataSourceImpl implements AIInsightsDataSource {
     required AIInsightsContext context,
   }) async {
     try {
-      // List of models to try in order (more conservative approach)
+      // List of models to try in order (updated for 2025)
       final modelsToTry = [
-        'gemini-1.5-flash',
-        'gemini-1.0-pro',
-        'gemini-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash',
       ];
 
       Exception? lastException;

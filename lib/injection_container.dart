@@ -68,6 +68,10 @@ import 'features/daily_briefing/domain/usecases/get_news_usecase.dart';
 import 'features/daily_briefing/domain/usecases/get_calendar_events_usecase.dart';
 import 'features/daily_briefing/domain/usecases/generate_ai_insights_usecase.dart';
 import 'features/daily_briefing/domain/usecases/generate_daily_briefing_usecase.dart';
+import 'features/daily_briefing/domain/usecases/schedule_briefing_usecase.dart';
+import 'features/daily_briefing/domain/usecases/get_preferences_usecase.dart';
+import 'features/daily_briefing/domain/usecases/save_preferences_usecase.dart';
+import 'features/daily_briefing/domain/usecases/get_cached_briefing_usecase.dart';
 import 'features/daily_briefing/presentation/bloc/briefing_bloc.dart';
 
 final sl = GetIt.instance;
@@ -95,7 +99,7 @@ Future<void> init() async {
   final notificationsPlugin = FlutterLocalNotificationsPlugin();
   sl.registerLazySingleton(() => notificationsPlugin);
   sl.registerLazySingleton(() => NotificationService(sl()));
-  sl.registerLazySingleton(() => ApiKeyService(secureStorage: sl()));
+  sl.registerLazySingleton(() => const ApiKeyService());
   sl.registerLazySingleton(() => GeminiModelManager());
 
   //! External
@@ -239,11 +243,29 @@ void _initDailyBriefingFeature() {
     () => GenerateDailyBriefingUseCase(sl<BriefingRepository>()),
   );
 
+  sl.registerLazySingleton<ScheduleBriefingUseCase>(
+    () => ScheduleBriefingUseCase(),
+  );
+
+  sl.registerLazySingleton<GetPreferencesUseCase>(
+    () => GetPreferencesUseCase(sl<BriefingRepository>()),
+  );
+
+  sl.registerLazySingleton<SavePreferencesUseCase>(
+    () => SavePreferencesUseCase(sl<BriefingRepository>()),
+  );
+
+  sl.registerLazySingleton<GetCachedBriefingUseCase>(
+    () => GetCachedBriefingUseCase(sl<BriefingRepository>()),
+  );
+
   // Daily Briefing BLoC
   sl.registerFactory<BriefingBloc>(
     () => BriefingBloc(
       generateDailyBriefingUseCase: sl<GenerateDailyBriefingUseCase>(),
-      briefingRepository: sl<BriefingRepository>(),
+      getPreferencesUseCase: sl<GetPreferencesUseCase>(),
+      savePreferencesUseCase: sl<SavePreferencesUseCase>(),
+      getCachedBriefingUseCase: sl<GetCachedBriefingUseCase>(),
     ),
   );
 

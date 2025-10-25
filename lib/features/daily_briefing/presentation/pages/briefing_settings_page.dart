@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../domain/repositories/briefing_repository.dart';
+import '../../domain/usecases/schedule_briefing_usecase.dart';
 import '../bloc/briefing_bloc.dart';
 import '../../../../core/theme/text_styles.dart';
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/dependency_injection/injection_container.dart';
+import '../../../../core/services/briefing_preferences_service.dart';
 
 class BriefingSettingsPage extends StatefulWidget {
   const BriefingSettingsPage({super.key});
@@ -25,6 +27,11 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
   bool _useCurrentLocation = false;
   double? _latitude;
   double? _longitude;
+
+  // Schedule settings
+  bool _scheduleEnabled = false;
+  TimeOfDay _scheduleTime = const TimeOfDay(hour: 7, minute: 0);
+  bool _notificationsEnabled = true;
 
   final List<String> _availableCountries = [
     'us',
@@ -67,6 +74,21 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
   Future<void> _loadPreferences() async {
     final bloc = context.read<BriefingBloc>();
     bloc.add(const PreferencesRequested());
+
+    // Load schedule preferences
+    try {
+      final prefsService = sl<BriefingPreferencesService>();
+      setState(() {
+        _scheduleEnabled = prefsService.scheduleEnabled;
+        _scheduleTime = TimeOfDay(
+          hour: prefsService.scheduleHour,
+          minute: prefsService.scheduleMinute,
+        );
+        _notificationsEnabled = prefsService.notificationsEnabled;
+      });
+    } catch (e) {
+      // Handle error silently - use defaults
+    }
   }
 
   @override
@@ -227,6 +249,41 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
                       );
                     }).toList(),
                   ),
+                ],
+              ),
+
+              SizedBox(height: 24.h),
+
+              _buildSection(
+                title: 'Schedule & Notifications',
+                icon: Icons.schedule,
+                children: [
+                  _buildSwitchTile(
+                    title: 'Enable Daily Briefing',
+                    subtitle: 'Get your briefing at a scheduled time',
+                    value: _scheduleEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _scheduleEnabled = value;
+                      });
+                    },
+                  ),
+
+                  if (_scheduleEnabled) ...[
+                    SizedBox(height: 16.h),
+                    _buildTimePicker(),
+                    SizedBox(height: 16.h),
+                    _buildSwitchTile(
+                      title: 'Push Notifications',
+                      subtitle: 'Receive notifications when briefing is ready',
+                      value: _notificationsEnabled,
+                      onChanged: (value) {
+                        setState(() {
+                          _notificationsEnabled = value;
+                        });
+                      },
+                    ),
+                  ],
                 ],
               ),
 
@@ -398,6 +455,53 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
     );
   }
 
+  Widget _buildTimePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Schedule Time',
+          style: AppTextStyles.bodyMedium.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        SizedBox(height: 8.h),
+        InkWell(
+          onTap: () async {
+            final time = await showTimePicker(
+              context: context,
+              initialTime: _scheduleTime,
+            );
+            if (time != null) {
+              setState(() {
+                _scheduleTime = time;
+              });
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: ColorPalette.primary),
+                SizedBox(width: 12.w),
+                Text(
+                  _scheduleTime.format(context),
+                  style: AppTextStyles.bodyMedium,
+                ),
+                const Spacer(),
+                Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _requestLocationPermission() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -436,7 +540,8 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
     }
   }
 
-  void _savePreferences() {
+  void _savePreferences() async {
+    // Save briefing preferences
     final preferences = BriefingPreferences(
       preferredCity: _cityController.text.isNotEmpty ? _cityController.text : null,
       latitude: _latitude,
@@ -449,14 +554,47 @@ class _BriefingSettingsPageState extends State<BriefingSettingsPage> {
 
     context.read<BriefingBloc>().add(PreferencesSaved(preferences));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Preferences saved successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    // Save schedule preferences
+    try {
+      final prefsService = sl<BriefingPreferencesService>();
+      await prefsService.setScheduleEnabled(_scheduleEnabled);
+      await prefsService.setScheduleHour(_scheduleTime.hour);
+      await prefsService.setScheduleMinute(_scheduleTime.minute);
+      await prefsService.setNotificationsEnabled(_notificationsEnabled);
 
-    Navigator.of(context).pop();
+      // Update background scheduling
+      final scheduleUseCase = sl<ScheduleBriefingUseCase>();
+      final scheduleParams = ScheduleBriefingParams(
+        enabled: _scheduleEnabled,
+        hour: _scheduleTime.hour,
+        minute: _scheduleTime.minute,
+        notificationsEnabled: _notificationsEnabled,
+      );
+
+      final result = await scheduleUseCase(scheduleParams);
+      result.fold(
+        (failure) {
+          _showError('Failed to update schedule: ${failure.message}');
+          return;
+        },
+        (success) {
+          // Schedule updated successfully
+        },
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_scheduleEnabled
+            ? 'Preferences saved! Daily briefing scheduled for ${_scheduleTime.format(context)}'
+            : 'Preferences saved! Daily briefing schedule disabled'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      _showError('Failed to save preferences: $e');
+    }
   }
 
   void _showError(String message) {

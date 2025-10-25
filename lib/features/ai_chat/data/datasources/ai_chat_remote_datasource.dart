@@ -65,7 +65,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
       throw const AIProviderException(
         provider: 'gemini',
         message:
-            'Gemini API key not configured. Please add your API key in Settings.',
+            'Gemini API key not configured. Please add your API key in .env file.',
       );
     }
 
@@ -77,7 +77,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 65536,
       ),
     );
 
@@ -380,7 +380,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
   ) async {
     throw const AIProviderException(
       provider: 'claude',
-      message: 'Claude API key not configured. Please add your API key in settings.',
+      message: 'Claude API key not configured. Please add your API key in .env file.',
     );
   }
 
@@ -399,7 +399,7 @@ class AIChatRemoteDataSourceImpl implements AIChatRemoteDataSource {
   ) async {
     throw const AIProviderException(
       provider: 'openai',
-      message: 'OpenAI API key not configured. Please add your API key in settings.',
+      message: 'OpenAI API key not configured. Please add your API key in .env file.',
     );
   }
 

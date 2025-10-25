@@ -106,7 +106,7 @@ class AIProviderSelector extends StatelessWidget {
           FilledButton(
             onPressed: () {
               dialogContext.pop();
-              context.go('/subscription');
+              context.push('/subscription');
             },
             child: const Text('Upgrade Now'),
           ),

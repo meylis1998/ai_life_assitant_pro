@@ -1,4 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:go_router/go_router.dart';
+import '../router/app_router.dart';
 
 /// Service to handle local notifications
 class NotificationService {
@@ -90,6 +92,9 @@ class NotificationService {
   /// Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
     // Handle notification tap - navigate to briefing page
-    // This will be implemented when integrating with navigation
+    if (response.payload == 'briefing') {
+      // Navigate to briefing page
+      AppRouter.router.go('/briefing');
+    }
   }
 }

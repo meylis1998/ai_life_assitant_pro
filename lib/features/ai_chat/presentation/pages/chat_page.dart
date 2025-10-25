@@ -330,10 +330,10 @@ class _ChatPageState extends State<ChatPage> {
               onSelected: (value) {
                 switch (value) {
                   case 'profile':
-                    context.go('/settings');
+                    context.push('/settings');
                     break;
                   case 'subscription':
-                    context.go('/subscription');
+                    context.push('/subscription');
                     break;
                 }
               },
